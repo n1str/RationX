@@ -8,7 +8,14 @@ import java.time.LocalDateTime;
 public class Transaction {
 
     public enum PersonType {
-        ФИЗИЧЕСКОЕ_ЛИЦО, ЮРИДИЧЕСКОЕ_ЛИЦО
+        PERSON_TYPE("Физическое лицо"),
+        LEGAL_TYPE ("Юридическое лицо");
+
+        public String ch;
+
+        PersonType(String ch) {
+            this.ch = ch;
+        }
     }
 
     public enum TransactionType {
