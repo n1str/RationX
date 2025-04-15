@@ -11,22 +11,34 @@ import org.springframework.security.web.SecurityFilterChain;
 import ru.rationx.financeapp.exceptions.CustomAuthenticationFailureHandler;
 import ru.rationx.financeapp.services.AuthUserService;
 
-
+/**
+ * Этот класс настраивает, как работает безопасность и авторизация в приложении.
+ * Здесь описано, кто и как может заходить на разные страницы, как происходит вход/выход и как шифруются пароли.
+ */
 @Configuration
 @RequiredArgsConstructor
 public class AuthUserConfiguration{
     @Autowired
+    // Сервис, который отвечает за работу с пользователями (поиск, проверка пароля и т.д.)
     private final AuthUserService userService;
 
+    /**
+     * Основная настройка безопасности приложения.
+     * Здесь указывается, какие страницы доступны всем, а какие — только авторизованным.
+     * Также настраивается форма входа, выход и обработка ошибок входа.
+     */
     @Bean
     public SecurityFilterChain appSecurityConfiguration(HttpSecurity http) throws Exception {
         http.userDetailsService(userService);
         http.authorizeHttpRequests(
             auth -> auth
-
+                // Эти папки (css, js, img) доступны всем, даже если не вошёл в систему
                 .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
+                // Страницы входа и регистрации доступны всем
                 .requestMatchers("/login","/register").permitAll()
+                // Всё, что начинается с /api/ — только для авторизованных
                 .requestMatchers("/api/**").authenticated()
+                // Все остальные страницы — только для авторизованных
                 .anyRequest().authenticated()
         )
         .formLogin(form -> form
@@ -34,6 +46,7 @@ public class AuthUserConfiguration{
             .passwordParameter("password")
             .loginPage("/login")
             .defaultSuccessUrl("/",true)
+            // Если не получилось войти — используем свой обработчик ошибок
             .failureHandler(new CustomAuthenticationFailureHandler())
             .permitAll()
 
@@ -42,12 +55,16 @@ public class AuthUserConfiguration{
             .logoutUrl("/logout") // URL выхода
             .logoutSuccessUrl("/login") // Куда перенаправить после выхода
             .permitAll()
-            .invalidateHttpSession(true) // Инвалидировать сессию
-            .clearAuthentication(true) // Очистить аутентификацию
+            .invalidateHttpSession(true) // Сразу "забываем" пользователя
+            .clearAuthentication(true) // Очищаем данные о входе
         );
         return http.build();
     }
 
+    /**
+     * Здесь настраивается шифровка паролей.
+     * Все пароли в базе хранятся не в чистом виде, а в виде "зашифрованной каши" (bcrypt).
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

@@ -7,15 +7,26 @@ import ru.rationx.financeapp.models.Subject;
 
 import java.time.LocalDateTime;
 
+/**
+ * Эта сущность описывает одну финансовую операцию (транзакцию).
+ * Здесь хранятся все детали — кто, кому, когда и что сделал, статус, комментарий и ссылки на связанные объекты.
+ * Если нужно добавить новое поле или логику для транзакции — тут.
+ */
 @Data
 @Entity
+// Описывает одну финансовую операцию (транзакцию).
+// Например: перевод денег, оплата, возврат и т.д.
+// Здесь хранятся все детали — кто, кому, когда и что сделал.
 public class Transaction {
 
     @Id
     @GeneratedValue
+    // Уникальный номер транзакции (создаётся автоматически)
     private Long id;
 
-    // Статус транзакции
+    /**
+     * Перечисление (enum) — список возможных статусов для любой транзакции.
+     */
     public enum TransactionStatus {
         NEW("Новая"),
         ACCEPTED("Подтвержденная"),
@@ -33,32 +44,33 @@ public class Transaction {
 
     @NotNull
     @Enumerated(EnumType.ORDINAL)
+    // Здесь хранится текущий статус транзакции (например, новая, отменена и т.д.)
     private TransactionStatus status;
 
     // -----------------
-
     // Банк
 
     //------------------
 
     @NotNull
+    // Когда произошла операция (дата и время)
     private LocalDateTime dateTime;
 
     private String comment; // комментарий к транзакции
 
     //  one to one
 
-    // Регистр дебет/кредит
+    // Ссылка на отдельный объект, где хранится инфа о том, дебет это или кредит
     @OneToOne
     @JoinColumn(name = "reg_transaction_id")
     private RegTransaction regTransaction;
 
-    // Субъект отправителя
+    // Кто отправил деньги (или начал операцию)
     @OneToOne
     @JoinColumn(name = "subject_id")
     private Subject subjectSender;
 
-    // Cубъект получателя
+    // Кто получил деньги (или был получателем в операции)
     @OneToOne
     @JoinColumn(name = "subject_getter_id")
     private Subject subjectGetter;

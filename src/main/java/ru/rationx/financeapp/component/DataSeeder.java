@@ -7,7 +7,12 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import ru.rationx.financeapp.services.RoleService;
 
-
+/**
+ * Этот компонент автоматически запускается при старте приложения.
+ * Он проверяет, есть ли в базе роли ADMIN и USER, и если их нет — создаёт их.
+ * Это нужно для корректной работы системы ролей и авторизации.
+ * Если потребуется добавить новые роли по умолчанию — тут.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

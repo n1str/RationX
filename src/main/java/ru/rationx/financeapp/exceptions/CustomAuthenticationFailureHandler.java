@@ -9,6 +9,11 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 
 import java.io.IOException;
 
+/**
+ * Этот обработчик отвечает за то, что происходит при ошибке входа в систему.
+ * Например, если пользователь ввёл неправильный логин или пароль.
+ * Здесь можно задать своё сообщение об ошибке и перенаправить пользователя на страницу входа с подсказкой.
+ */
 public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     @Override
@@ -24,4 +29,3 @@ public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationF
         getRedirectStrategy().sendRedirect(request, response, "/login?error");
     }
 }
-
