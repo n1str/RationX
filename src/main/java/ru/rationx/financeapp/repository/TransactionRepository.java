@@ -7,7 +7,7 @@ import ru.rationx.financeapp.models.Transaction;
 import java.util.UUID;
 
 @Repository
-public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     // методы фильтрации по ИНН, статусу и т.д.
 }
 

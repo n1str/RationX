@@ -1,11 +1,19 @@
 package ru.rationx.financeapp.models;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
+@Entity
 public class Transaction {
+
+    @Id
+    @GeneratedValue
+    private Long id;
 
     public enum PersonType {
         PERSON_TYPE("Физическое лицо"),
