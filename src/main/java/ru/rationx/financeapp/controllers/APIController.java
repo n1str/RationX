@@ -1,7 +1,7 @@
 package ru.rationx.financeapp.controllers;
 
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.*;
 
 // Аннотация @Controller указывает, что этот класс является контроллером в архитектуре Spring MVC
 @Controller
