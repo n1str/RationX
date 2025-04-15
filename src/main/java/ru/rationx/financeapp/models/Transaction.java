@@ -19,17 +19,28 @@ public class Transaction {
     }
 
     public enum TransactionType {
-        ПОСТУПЛЕНИЕ, СПИСАНИЕ
+        DEBIT("Поступление"),
+        CREDIT("Расход");
+
+        public String ch;
+        TransactionType(String ch) {
+            this.ch = ch;
+        }
     }
 
     public enum TransactionStatus {
-        НОВАЯ,
-        ПОДТВЕРЖДЕННАЯ,
-        В_ОБРАБОТКЕ,
-        ОТМЕНЕНА,
-        ПЛАТЕЖ_ВЫПОЛНЕН,
-        ПЛАТЕЖ_УДАЛЕН,
-        ВОЗВРАТ
+        NEW("Новая"),
+        ACCEPTED("Подтвержденная"),
+        PROCESSING("В обработке"),
+        CANCELED("Отмена"),
+        PAYMENT_COMPLETED("Платеж выполнен"),
+        PAYMENT_DELETED("Платеж удален"),
+        RETURN("Возврат");
+
+        public String ch;
+        TransactionStatus(String ch) {
+            this.ch = ch;
+        }
     }
 
     @NotNull
