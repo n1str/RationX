@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://176.124.215.222:5432/finance_db
+    password: ovedet92
+    username: matthewencore
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  thymeleaf:
+    mode: HTML
+    prefix: classpath:/templates/
+    suffix: .html
+    cache: false
+    encoding: UTF-8
+    enabled: true
+  application:
+    name: FinanceApp
