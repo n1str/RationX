@@ -13,4 +13,6 @@ public class Users {
     @GeneratedValue
     private Long id;
 
+    private String name;
+
 }

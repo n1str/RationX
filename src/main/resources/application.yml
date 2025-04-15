@@ -8,6 +8,7 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
+      default_schema: finance
   thymeleaf:
     mode: HTML
     prefix: classpath:/templates/
