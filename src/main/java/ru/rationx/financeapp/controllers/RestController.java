@@ -6,7 +6,7 @@
 //import org.springframework.http.HttpStatus;
 //import org.springframework.http.ResponseEntity;
 //import org.springframework.web.bind.annotation.*;
-//import ru.rationx.financeapp.models.Transaction;
+//import ru.rationx.financeapp.models.transaction.Transaction;
 //import ru.rationx.financeapp.services.TransactionService;
 //
 //import java.util.List;

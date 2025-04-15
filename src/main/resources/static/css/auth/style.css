@@ -1,0 +1,193 @@
+/* Общие стили для страницы */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif; /* Современный шрифт */
+}
+
+body {
+    background: #0d1117; /* Темный фон */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Контейнер формы */
+.login-container {
+    background: #161b22; /* Темно-серый фон */
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6); /* Мягкая глубокая тень */
+    width: 350px;
+    transition: box-shadow 0.3s ease;
+}
+
+.login-container:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8);
+}
+
+/* Заголовок */
+.login-form h1 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 2rem;
+    color: #58a6ff; /* Светло-синий акцент */
+}
+
+/* Поля ввода */
+.input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    background: #21262d; /* Темно-серый фон ввода */
+    border-radius: 5px;
+    padding: 0.8rem;
+}
+
+.input-group:focus-within {
+    box-shadow: 0 0 5px 1px #58a6ff;
+    transition: box-shadow 0.3s ease;
+}
+
+.input-group label {
+    margin-right: 0.5rem;
+    color: #8b949e;
+}
+
+.input-group input {
+    background: none;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    flex: 1;
+    font-size: 1rem;
+}
+
+.input-group input::placeholder {
+    color: #8b949e;
+}
+
+/* Основная кнопка */
+.login-button {
+    background: #238636;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 0.8rem;
+    width: 100%;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.1s ease;
+    text-transform: uppercase;
+}
+
+.login-button:hover {
+    background: #2ea043;
+    transform: scale(1.02);
+}
+
+/* Кнопка авторизации через Telegram */
+.telegram-button {
+    background: #0088cc; /* Цвет Telegram */
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 0.8rem;
+    margin-top: 1rem;
+    width: 100%;
+    font-size: 1rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.1s ease;
+}
+
+.telegram-button i {
+    margin-right: 0.5rem; /* Отступ для иконки */
+    font-size: 1.2rem;
+}
+
+.telegram-button:hover {
+    background: #00a6e3; /* Светлее при наведении */
+    transform: scale(1.02);
+}
+
+/* Ссылка на регистрацию */
+.signup-link {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.signup-link a {
+    color: #58a6ff;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.signup-link a:hover {
+    color: #79c0ff;
+    text-decoration: underline;
+}
+
+/* УВЕДОМЛЕНИЯ */
+/* Уведомления*/
+
+.error-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4444;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    animation: slideIn 0.3s ease-out forwards, fadeOut 0.5s ease-in 4.5s forwards;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.error-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.error-message {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+}

@@ -1,0 +1,111 @@
+/* Общие стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif; /* Современный шрифт */
+}
+
+body {
+    background: #0d1117; /* Темный фон страницы */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Контейнер формы */
+.form-container {
+    background: #161b22; /* Темно-серый фон формы */
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5); /* Тень для объема */
+    width: 350px;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+
+/* Заголовок */
+h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #58a6ff; /* Светло-синий акцент */
+    font-size: 1.8rem;
+}
+
+/* Поля ввода */
+.input-group {
+    display: flex;
+    align-items: center;
+    background: #21262d; /* Темно-серый фон ввода */
+    border: 1px solid #30363d;
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-group:focus-within {
+    border-color: #58a6ff; /* Цвет при фокусе */
+    box-shadow: 0 0 5px rgba(88, 166, 255, 0.5);
+}
+
+.input-group i {
+    margin-right: 0.5rem;
+    color: #8b949e; /* Цвет иконок */
+    font-size: 1.2rem;
+}
+
+.input-group input {
+    background: none;
+    border: none;
+    outline: none;
+    color: #ffffff; /* Белый текст */
+    flex: 1;
+    font-size: 1rem;
+}
+
+.input-group input::placeholder {
+    color: #8b949e; /* Цвет placeholder */
+}
+
+/* Кнопка отправки */
+button {
+    background: #238636; /* Зеленая кнопка */
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 0.8rem;
+    width: 100%;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+button:hover {
+    background: #2ea043; /* Светлее при наведении */
+    transform: scale(1.03);
+    box-shadow: 0 4px 10px rgba(46, 160, 67, 0.5);
+}
+
+/* Ссылка для входа */
+.signup-link {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #8b949e;
+}
+
+.signup-link a {
+    color: #58a6ff; /* Цвет ссылки */
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.signup-link a:hover {
+    color: #79c0ff; /* Яркий синий при наведении */
+    text-decoration: underline;
+}

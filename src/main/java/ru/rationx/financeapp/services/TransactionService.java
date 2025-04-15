@@ -6,7 +6,7 @@
 //import java.util.List;
 //import java.util.UUID;
 //
-//import ru.rationx.financeapp.models.Transaction;
+//import ru.rationx.financeapp.models.transaction.Transaction;
 //import ru.rationx.financeapp.models.exception.DoesNotExistTransaction;
 //import ru.rationx.financeapp.repository.TransactionRepository;
 //

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Авторизация</title>
+  <link rel="stylesheet" th:href="@{/css/auth/style.css}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div th:if="${error}" class="error-toast">
+  <div class="error-content">
+    <svg class="error-icon" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+    </svg>
+    <span class="error-message" th:text="${error}"></span>
+  </div>
+</div>
+
+<div class="login-container">
+  <form class="login-form" th:action="@{/login}" method="post">
+
+    <h1>Логин</h1>
+    <div class="input-group">
+      <label for="login">
+        <i class="fas fa-user"></i>
+      </label>
+      <input type="text" id="login" name="username" placeholder="Имя пользователя" required>
+    </div>
+    <div class="input-group">
+      <label for="password">
+        <i class="fas fa-lock"></i>
+      </label>
+      <input type="password" id="password" name="password" placeholder="Пароль" required>
+    </div>
+    <button type="submit" class="login-button">Войти</button>
+
+    <p class="signup-link">Нет аккаунта? <a href="#" th:href="@{/register}">Создать</a></p>
+
+  </form>
+  <script type="text/javascript" th:src="@{/js/push.js}"></script>
+</div>
+</body>
+</html>
