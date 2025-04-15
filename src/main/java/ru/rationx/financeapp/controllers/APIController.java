@@ -8,8 +8,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class APIController {
     // Аннотация @GetMapping привязывает HTTP GET запросы к корневому пути "/" к этому методу
     @GetMapping("/")
-    public String APIController(){
+    public String index(){
         // Возвращает имя представления "index", которое будет преобразовано в соответствующий HTML-шаблон
         return "index";
+    }
+
+    @GetMapping("/transactions")
+    public String transactions(){
+        return "transactions";
     }
 }
