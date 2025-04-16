@@ -4,15 +4,562 @@
   Если хочешь изменить приветствие или добавить что-то ещё — делай это внутри <body>.
 -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>RationX!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RationX - Финансовый мониторинг</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            margin-bottom: 20px;
+        }
+        .dashboard-card {
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            font-weight: bold;
+        }
+        #newTransactionModal .modal-dialog {
+            max-width: 700px;
+        }
+        .chart-container {
+            height: 300px;
+            margin-bottom: 30px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome!</h1>
-    <div th:replace="header :: header"></div>
+    <div class="container">
+        <div th:replace="header :: header"></div>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title">Финансовый мониторинг и отчетность</h2>
+                        <p class="card-text">Добро пожаловать в приложение для управления вашими финансами. Здесь вы можете отслеживать доходы и расходы, анализировать финансовые показатели и получать подробные отчеты.</p>
+                        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
+                            <i class="bi bi-plus-circle"></i> Новая транзакция
+                        </button>
+                        <a href="/transactions" class="btn btn-outline-secondary">
+                            <i class="bi bi-list"></i> Все транзакции
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Дашборды и графики -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-primary text-white">
+                        Динамика транзакций
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="transactionCountChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-success text-white">
+                        Соотношение поступлений и расходов
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="balanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-info text-white">
+                        Статистика по категориям расходов
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="expenseCategoriesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-warning text-dark">
+                        Статистика по банкам
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="bankStatisticsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для новой транзакции -->
+        <div class="modal fade" id="newTransactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="transactionModalLabel">Новая транзакция</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="transactionForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="transactionType" class="form-label">Тип транзакции:</label>
+                                    <select id="transactionType" class="form-select" required>
+                                        <option value="DEBIT">Поступление</option>
+                                        <option value="CREDIT">Расход</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="category" class="form-label">Категория:</label>
+                                    <select id="category" class="form-select" required>
+                                        <option value="">Выберите категорию</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="sum" class="form-label">Сумма:</label>
+                                    <input type="number" class="form-control" id="sum" min="0.01" step="0.01" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dateTime" class="form-label">Дата и время:</label>
+                                    <input type="datetime-local" class="form-control" id="dateTime" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="personType" class="form-label">Тип лица:</label>
+                                <select id="personType" class="form-select" required>
+                                    <option value="PERSON_TYPE">Физическое лицо</option>
+                                    <option value="LEGAL_TYPE">Юридическое лицо</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Комментарий:</label>
+                                <textarea class="form-control" id="comment" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="senderBank" class="form-label">Банк отправителя:</label>
+                                    <input type="text" class="form-control" id="senderBank">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="recipientBank" class="form-label">Банк получателя:</label>
+                                    <input type="text" class="form-control" id="recipientBank">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="inn" class="form-label">ИНН получателя:</label>
+                                <input type="text" class="form-control" id="inn" pattern="^\\d{10}|\\d{12}$">
+                                <div class="form-text">10 цифр для юр. лиц, 12 цифр для физ. лиц</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="recipientPhone" class="form-label">Телефон получателя:</label>
+                                <input type="tel" class="form-control" id="recipientPhone" pattern="^(\\+7|8)\\d{10}$">
+                                <div class="form-text">Формат: +7XXXXXXXXXX или 8XXXXXXXXXX</div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="saveTransaction">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация текущей даты и времени в поле
+            const now = new Date();
+            const dateTimeStr = now.toISOString().slice(0, 16);
+            document.getElementById('dateTime').value = dateTimeStr;
+            
+            // Загрузка категорий для выпадающего списка
+            loadCategories();
+            
+            // Изменение списка категорий при изменении типа транзакции
+            document.getElementById('transactionType').addEventListener('change', loadCategories);
+            
+            // Обработчик события сохранения транзакции
+            document.getElementById('saveTransaction').addEventListener('click', saveTransaction);
+            
+            // Загрузка данных для дашбордов
+            loadDashboardData();
+        });
+        
+        // Функция загрузки категорий в зависимости от типа транзакции
+        function loadCategories() {
+            const transactionType = document.getElementById('transactionType').value;
+            const categorySelect = document.getElementById('category');
+            
+            // Очистка текущего списка
+            categorySelect.innerHTML = '<option value="">Загрузка категорий...</option>';
+            
+            fetch(`/api/categories/by-type?type=${transactionType}`)
+                .then(response => response.json())
+                .then(categories => {
+                    categorySelect.innerHTML = '<option value="">Выберите категорию</option>';
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        categorySelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке категорий:', error);
+                    categorySelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+                });
+        }
+        
+        // Функция сохранения новой транзакции
+        function saveTransaction() {
+            // Основная информация о транзакции
+            const transactionType = document.getElementById('transactionType').value;
+            const categoryId = document.getElementById('category').value;
+            const sum = document.getElementById('sum').value;
+            const dateTime = document.getElementById('dateTime').value;
+            const comment = document.getElementById('comment').value;
+            const personType = document.getElementById('personType').value;
+            const senderBank = document.getElementById('senderBank').value;
+            const recipientBank = document.getElementById('recipientBank').value;
+            const inn = document.getElementById('inn').value;
+            const recipientPhone = document.getElementById('recipientPhone').value;
+            
+            // Проверка обязательных полей
+            if (!transactionType || !categoryId || !sum || !dateTime || !personType) {
+                alert('Пожалуйста, заполните все обязательные поля!');
+                return;
+            }
+            
+            // Формирование объекта транзакции
+            const transaction = {
+                status: 'NEW',
+                dateTime: new Date(dateTime).toISOString(),
+                comment: comment || null,
+                regTransaction: {
+                    transactionType: transactionType,
+                    sum: parseFloat(sum)
+                },
+                category: {
+                    id: parseInt(categoryId)
+                }
+            };
+            
+            // Добавление информации о банках, если заполнена
+            if (senderBank) {
+                transaction.senderBank = { nameBank: senderBank };
+            }
+            
+            if (recipientBank) {
+                transaction.recipientBank = { nameBank: recipientBank };
+            }
+            
+            // Добавление информации о субъектах
+            transaction.subjectSender = { personType: personType };
+            
+            if (inn || recipientPhone) {
+                transaction.subjectGetter = {
+                    personType: personType,
+                    inn: inn || null,
+                    recipientPhone: recipientPhone || null
+                };
+            }
+            
+            // Отправка данных на сервер
+            fetch('/api/transactions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken()
+                },
+                body: JSON.stringify(transaction)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Закрытие модального окна и обновление дашбордов
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newTransactionModal'));
+                modal.hide();
+                document.getElementById('transactionForm').reset();
+                
+                // Обновление дашбордов
+                loadDashboardData();
+                
+                alert('Транзакция успешно создана!');
+            })
+            .catch(error => {
+                console.error('Ошибка при создании транзакции:', error);
+                alert('Ошибка при создании транзакции: ' + error.message);
+            });
+        }
+        
+        // Получение CSRF токена из cookies
+        function getCsrfToken() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'XSRF-TOKEN') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return '';
+        }
+        
+        // Загрузка данных для дашбордов и графиков
+        function loadDashboardData() {
+            // Загрузка данных для графика количества транзакций
+            fetch('/api/transactions')
+                .then(response => response.json())
+                .then(transactions => {
+                    renderTransactionCountChart(transactions);
+                    renderBalanceChart(transactions);
+                    renderExpenseCategoriesChart(transactions);
+                    renderBankStatisticsChart(transactions);
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных для дашбордов:', error);
+                });
+        }
+        
+        // Рендеринг графика количества транзакций
+        function renderTransactionCountChart(transactions) {
+            const ctx = document.getElementById('transactionCountChart').getContext('2d');
+            
+            // Группировка транзакций по датам
+            const transactionsByDate = {};
+            transactions.forEach(tx => {
+                const date = new Date(tx.dateTime).toLocaleDateString();
+                transactionsByDate[date] = (transactionsByDate[date] || 0) + 1;
+            });
+            
+            // Сортировка дат
+            const sortedDates = Object.keys(transactionsByDate).sort((a, b) => new Date(a) - new Date(b));
+            const transactionCounts = sortedDates.map(date => transactionsByDate[date]);
+            
+            // Создание графика
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Количество транзакций',
+                        data: transactionCounts,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Количество'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Дата'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Рендеринг графика баланса доходов и расходов
+        function renderBalanceChart(transactions) {
+            const ctx = document.getElementById('balanceChart').getContext('2d');
+            
+            // Подсчет суммы доходов и расходов
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            transactions.forEach(tx => {
+                if (tx.regTransaction && tx.regTransaction.sum) {
+                    if (tx.regTransaction.transactionType === 'DEBIT') {
+                        totalIncome += tx.regTransaction.sum;
+                    } else {
+                        totalExpense += tx.regTransaction.sum;
+                    }
+                }
+            });
+            
+            // Создание графика
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Доходы', 'Расходы'],
+                    datasets: [{
+                        data: [totalIncome, totalExpense],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    let value = context.raw || 0;
+                                    return `${label}: ${value.toFixed(2)} ₽`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Рендеринг графика по категориям расходов
+        function renderExpenseCategoriesChart(transactions) {
+            const ctx = document.getElementById('expenseCategoriesChart').getContext('2d');
+            
+            // Группировка расходов по категориям
+            const expensesByCategory = {};
+            transactions.forEach(tx => {
+                if (tx.regTransaction && tx.regTransaction.transactionType === 'CREDIT' && tx.category) {
+                    const categoryName = tx.category.name || 'Без категории';
+                    expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + tx.regTransaction.sum;
+                }
+            });
+            
+            const categoryNames = Object.keys(expensesByCategory);
+            const categoryAmounts = categoryNames.map(name => expensesByCategory[name]);
+            
+            // Создание графика
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryNames,
+                    datasets: [{
+                        label: 'Расходы по категориям',
+                        data: categoryAmounts,
+                        backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Сумма (₽)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Рендеринг графика статистики по банкам
+        function renderBankStatisticsChart(transactions) {
+            const ctx = document.getElementById('bankStatisticsChart').getContext('2d');
+            
+            // Подсчет количества транзакций по банкам
+            const bankCounts = {};
+            transactions.forEach(tx => {
+                if (tx.senderBank && tx.senderBank.nameBank) {
+                    const bankName = tx.senderBank.nameBank;
+                    bankCounts[bankName] = (bankCounts[bankName] || 0) + 1;
+                }
+                if (tx.recipientBank && tx.recipientBank.nameBank) {
+                    const bankName = tx.recipientBank.nameBank;
+                    bankCounts[bankName] = (bankCounts[bankName] || 0) + 1;
+                }
+            });
+            
+            const bankNames = Object.keys(bankCounts);
+            const transactionCounts = bankNames.map(name => bankCounts[name]);
+            
+            // Создание графика
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: bankNames,
+                    datasets: [{
+                        data: transactionCounts,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>

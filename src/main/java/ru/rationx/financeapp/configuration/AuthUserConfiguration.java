@@ -1,14 +1,13 @@
 package ru.rationx.financeapp.configuration;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import ru.rationx.financeapp.exceptions.CustomAuthenticationFailureHandler;
 import ru.rationx.financeapp.services.AuthUserService;
 
@@ -18,8 +17,8 @@ import ru.rationx.financeapp.services.AuthUserService;
  */
 @Configuration
 @RequiredArgsConstructor
-public class AuthUserConfiguration{
-    @Autowired
+public class AuthUserConfiguration {
+    
     // Сервис, который отвечает за работу с пользователями (поиск, проверка пароля и т.д.)
     private final AuthUserService userService;
 
@@ -32,9 +31,10 @@ public class AuthUserConfiguration{
     public SecurityFilterChain appSecurityConfiguration(HttpSecurity http) throws Exception {
         http.userDetailsService(userService);
 
-        // ВАЖНО: отключаем CSRF для API!
+        // Настраиваем CSRF защиту через куки и отключаем её для API запросов
         http.csrf(csrf -> csrf
-                .disable()  // Полностью отключаем CSRF для тестирования
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers("/api/**") // Отключаем CSRF для API
         );
 
         http.authorizeHttpRequests(
@@ -42,21 +42,20 @@ public class AuthUserConfiguration{
                 // Эти папки (css, js, img) доступны всем, даже если не вошёл в систему
                 .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
                 // Страницы входа и регистрации доступны всем
-                .requestMatchers("/login","/register").permitAll()
-                // Всё, что начинается с /api/ — только для авторизованных
-                .requestMatchers("/api/**").permitAll() //ТЕСТИЛ УБЕРИТЕ КАК РАЗБЕРЕТЕСЬ С CSRF
-                // Все остальные страницы — только для авторизованных
-                .anyRequest().permitAll() //ТЕСТИЛ УБЕРИТЕ КАК РАЗБЕРЕТЕСЬ С CSRF
+                .requestMatchers("/login", "/register").permitAll()
+                // API для работы с транзакциями и категориями - только для аутентифицированных пользователей
+                .requestMatchers("/api/**").authenticated()
+                // Все остальные страницы - только для аутентифицированных пользователей
+                .anyRequest().authenticated()
         )
         .formLogin(form -> form
             .usernameParameter("username")
             .passwordParameter("password")
             .loginPage("/login")
-            .defaultSuccessUrl("/",true)
+            .defaultSuccessUrl("/", true)
             // Если не получилось войти — используем свой обработчик ошибок
             .failureHandler(new CustomAuthenticationFailureHandler())
             .permitAll()
-
         )
         .logout(logout -> logout
             .logoutUrl("/logout") // URL выхода
@@ -67,11 +66,7 @@ public class AuthUserConfiguration{
         );
 
         return http.build();
-
-
     }
-
-
 
     /**
      * Здесь настраивается шифровка паролей.
@@ -81,5 +76,4 @@ public class AuthUserConfiguration{
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 }

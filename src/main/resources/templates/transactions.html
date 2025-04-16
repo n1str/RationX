@@ -4,13 +4,217 @@
   В будущем сюда можно добавить таблицу или список операций.
 -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RationX - Список транзакций</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .filter-card {
+            margin-bottom: 20px;
+        }
+        .table-responsive {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <div th:replace="header :: header"></div>
-    <h1>Тут будут транзакции</h1>
+    <div class="container">
+        <div th:replace="header :: header"></div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title">Управление транзакциями</h2>
+                        <p class="card-text">Здесь вы можете просматривать, фильтровать и управлять своими финансовыми операциями.</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
+                            <i class="bi bi-plus-circle"></i> Новая транзакция
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Фильтры -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card filter-card">
+                    <div class="card-header bg-light">
+                        <h5>Фильтры</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="filterForm" class="row g-3">
+                            <div class="col-md-4">
+                                <label for="statusFilter" class="form-label">Статус</label>
+                                <select id="statusFilter" class="form-select">
+                                    <option value="">Все статусы</option>
+                                    <option value="NEW">Новая</option>
+                                    <option value="ACCEPTED">Подтвержденная</option>
+                                    <option value="PROCESSING">В обработке</option>
+                                    <option value="CANCELED">Отменена</option>
+                                    <option value="PAYMENT_COMPLETED">Платеж выполнен</option>
+                                    <option value="PAYMENT_DELETED">Платеж удален</option>
+                                    <option value="RETURN">Возврат</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="typeFilter" class="form-label">Тип транзакции</label>
+                                <select id="typeFilter" class="form-select">
+                                    <option value="">Все типы</option>
+                                    <option value="DEBIT">Поступление</option>
+                                    <option value="CREDIT">Расход</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="categoryFilter" class="form-label">Категория</label>
+                                <select id="categoryFilter" class="form-select">
+                                    <option value="">Все категории</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="startDate" class="form-label">Дата начала</label>
+                                <input type="date" id="startDate" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="endDate" class="form-label">Дата окончания</label>
+                                <input type="date" id="endDate" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="minAmount" class="form-label">Мин. сумма</label>
+                                <input type="number" id="minAmount" class="form-control" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="maxAmount" class="form-label">Макс. сумма</label>
+                                <input type="number" id="maxAmount" class="form-control" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="senderBankFilter" class="form-label">Банк отправителя</label>
+                                <input type="text" id="senderBankFilter" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="recipientBankFilter" class="form-label">Банк получателя</label>
+                                <input type="text" id="recipientBankFilter" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="innFilter" class="form-label">ИНН получателя</label>
+                                <input type="text" id="innFilter" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <button type="button" id="applyFilter" class="btn btn-primary">Применить фильтры</button>
+                                <button type="button" id="resetFilter" class="btn btn-outline-secondary">Сбросить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Таблица транзакций -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Дата</th>
+                                        <th>Тип</th>
+                                        <th>Категория</th>
+                                        <th>Сумма</th>
+                                        <th>Статус</th>
+                                        <th>Комментарий</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTable">
+                                    <!-- Здесь будут данные о транзакциях -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noTransactions" class="alert alert-info d-none">
+                            Транзакции не найдены.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для деталей транзакции -->
+        <div class="modal fade" id="transactionDetailsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Детали транзакции</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="transactionDetailsBody">
+                        <!-- Здесь будут детали транзакции -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-warning" id="editTransactionBtn">Редактировать</button>
+                        <button type="button" class="btn btn-danger" id="deleteTransactionBtn">Удалить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Модальное окно для редактирования транзакции -->
+        <div class="modal fade" id="editTransactionModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Редактирование транзакции</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editTransactionForm">
+                            <input type="hidden" id="editTransactionId">
+                            <div class="mb-3">
+                                <label for="editDateTime" class="form-label">Дата и время</label>
+                                <input type="datetime-local" class="form-control" id="editDateTime">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editStatus" class="form-label">Статус</label>
+                                <select id="editStatus" class="form-select">
+                                    <option value="NEW">Новая</option>
+                                    <option value="ACCEPTED">Подтвержденная</option>
+                                    <option value="PROCESSING">В обработке</option>
+                                    <option value="CANCELED">Отменена</option>
+                                    <option value="PAYMENT_COMPLETED">Платеж выполнен</option>
+                                    <option value="PAYMENT_DELETED">Платеж удален</option>
+                                    <option value="RETURN">Возврат</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editSum" class="form-label">Сумма</label>
+                                <input type="number" class="form-control" id="editSum" min="0.01" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editComment" class="form-label">Комментарий</label>
+                                <textarea class="form-control" id="editComment" rows="2"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="saveEditBtn">Сохранить изменения</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/transactions.js"></script>
 </body>
 </html>

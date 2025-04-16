@@ -1,53 +1,56 @@
 package ru.rationx.financeapp.models;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import lombok.Data;
 
 import java.util.List;
 
 /**
  * Эта сущность описывает участника финансовой операции (например, отправителя или получателя).
  * Здесь хранятся имя, ИНН, адрес, телефон и тип участника (физлицо или юрлицо).
- * Если нужно добавить новое поле для участника — тут.
  */
 @Entity
+@Data
 public class Subject {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     // Уникальный номер участника (создаётся автоматически)
     private Long id;
 
     public enum PersonType {
         PERSON_TYPE("Физическое лицо"),
-        LEGAL_TYPE ("Юридическое лицо");
+        LEGAL_TYPE("Юридическое лицо");
 
-        public String ch;
+        private final String description;
 
-        PersonType(String ch) {
-            this.ch = ch;
+        PersonType(String description) {
+            this.description = description;
+        }
+        
+        public String getDescription() {
+            return description;
         }
     }
 
     // Имя участника (например, Иван Иванов или ООО "Ромашка")
     private String name;
 
+    // ИНН участника (обязательное поле, для физлиц - 12 цифр, для юрлиц - 10 цифр)
     @NotNull
-    // ИНН участника (обязательное поле)
+    @Pattern(regexp = "^\\d{10}|\\d{12}$", message = "ИНН должен содержать 10 или 12 цифр")
     private String inn;
 
-    @NotNull
     // Адрес участника
     private String address;
 
-    @NotBlank
-    @Pattern(regexp = "^(\\+7|8)\\d{10}$")
     // Телефон получателя (в формате +7XXXXXXXXXX или 8XXXXXXXXXX)
+    @Pattern(regexp = "^(\\+7|8)\\d{10}$", message = "Телефон должен начинаться с +7 или 8 и содержать 11 цифр")
     private String recipientPhone;
 
     @NotNull
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     // Тип участника: физлицо или юрлицо
     private PersonType personType;
 

@@ -1,8 +1,11 @@
 package ru.rationx.financeapp.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import ru.rationx.financeapp.models.Subject;
+import ru.rationx.financeapp.models.transaction.Category;
 import ru.rationx.financeapp.models.transaction.RegTransaction;
 import ru.rationx.financeapp.models.transaction.Transaction;
 import ru.rationx.financeapp.models.transaction.TransactionType;
@@ -21,33 +24,29 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // По статусу
     List<Transaction> findByStatus(Transaction.TransactionStatus status);
 
-    // По ИНН получателя (если поле называется recipient, а в нем поле inn)
-
-    List<Transaction> findBySubjectGetter_Inn(String inn);
+    // По ИНН получателя
+    @Query("SELECT t FROM Transaction t WHERE t.subjectGetter.inn = :inn")
+    List<Transaction> findByRecipientInn(@Param("inn") String inn);
 
     // По типу транзакции
-
-    List<Transaction> findByRegTransaction_TransactionType(TransactionType transactionType);
+    @Query("SELECT t FROM Transaction t WHERE t.regTransaction.transactionType = :type")
+    List<Transaction> findByTransactionType(@Param("type") TransactionType transactionType);
 
     // По категории
+    List<Transaction> findByCategory(Category category);
 
-    //List<Transaction> findByCategory(String category);
+    // По банку отправителя
+    @Query("SELECT t FROM Transaction t WHERE t.senderBank.nameBank = :bankName")
+    List<Transaction> findBySenderBankName(@Param("bankName") String bankName);
 
-    // По банку отправителя (если есть связь senderBank -> Bank -> nameBank)
-
-    List<Transaction> findBySenderBank_NameBank(String nameBank);
-
-    // По банку получателя (если есть связь recipientBank -> Bank -> nameBank)
-    List<Transaction> findByRecipientBank_NameBank(String nameBank);
+    // По банку получателя
+    @Query("SELECT t FROM Transaction t WHERE t.recipientBank.nameBank = :bankName")
+    List<Transaction> findByRecipientBankName(@Param("bankName") String bankName);
 
     // По дате (диапазон)
     List<Transaction> findByDateTimeBetween(LocalDateTime start, LocalDateTime end);
 
     // По сумме (диапазон)
-    //List<Transaction> findByAmountBetween(Double min, Double max);
-
-
-
-
-
+    @Query("SELECT t FROM Transaction t WHERE t.regTransaction.sum BETWEEN :min AND :max")
+    List<Transaction> findByAmountBetween(@Param("min") Double min, @Param("max") Double max);
 }

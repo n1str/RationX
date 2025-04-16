@@ -19,6 +19,7 @@ import java.time.LocalDate;
  */
 @Builder
 @Entity
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class RegTransaction {
@@ -26,22 +27,24 @@ public class RegTransaction {
      * Уникальный номер этой записи (создаётся автоматически)
      */
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
      * Тип операции: дебет или кредит (берётся из специального перечисления TransactionType)
      */
     @Column(nullable = false)
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
 
     /**
      * Сумма операции (например, сколько денег перевели)
+     * Согласно ТЗ, должна иметь точность до 5 знаков
      */
+    @NotNull
     @DecimalMin(value = "0.01", inclusive = true)
-    @DecimalMax(value = "999999.99", inclusive = true)
-    @Digits(integer = 6, fraction = 2)
+    @DecimalMax(value = "999999.99999", inclusive = true)
+    @Digits(integer = 6, fraction = 5)
     @Column(nullable = false)
     private Double sum;
 

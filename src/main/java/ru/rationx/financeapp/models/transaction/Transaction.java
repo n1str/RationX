@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 /**
  * Эта сущность описывает одну финансовую операцию (транзакцию).
  * Здесь хранятся все детали — кто, кому, когда и что сделал, статус, комментарий и ссылки на связанные объекты.
- * Если нужно добавить новое поле или логику для транзакции — тут.
  */
 @Data
 @Entity
@@ -21,7 +20,7 @@ import java.time.LocalDateTime;
 public class Transaction {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     // Уникальный номер транзакции (создаётся автоматически)
     private Long id;
 
@@ -32,21 +31,25 @@ public class Transaction {
         NEW("Новая"),
         ACCEPTED("Подтвержденная"),
         PROCESSING("В обработке"),
-        CANCELED("Отмена"),
+        CANCELED("Отменена"),
         PAYMENT_COMPLETED("Платеж выполнен"),
         PAYMENT_DELETED("Платеж удален"),
         RETURN("Возврат");
 
-        public String ch;
-        TransactionStatus(String ch) {
-            this.ch = ch;
+        private final String description;
+        TransactionStatus(String description) {
+            this.description = description;
+        }
+        
+        public String getDescription() {
+            return description;
         }
     }
 
     @NotNull
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     // Здесь хранится текущий статус транзакции (например, новая, отменена и т.д.)
-    private TransactionStatus status;
+    private TransactionStatus status = TransactionStatus.NEW; // По умолчанию - новая
 
     // -----------------
     // Банк
@@ -61,46 +64,49 @@ public class Transaction {
 
     @NotNull
     // Когда произошла операция (дата и время)
-    private LocalDateTime dateTime;
+    private LocalDateTime dateTime = LocalDateTime.now();
 
-    private String comment; // комментарий к транзакции
+    // Комментарий к транзакции (необязательный)
+    private String comment;
 
-    //  one to one
+    // Категория операции (например, "Продукты", "Коммунальные услуги")
+    @ManyToOne(cascade = CascadeType.MERGE)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
-    // Ссылка на отдельный объект, где хранится инфа о том, дебет это или кредит
-
-    //БЫЛО ТАК
-//    @OneToOne
-//    @JoinColumn(name = "reg_transaction_id")
-//    private RegTransaction regTransaction;
-
-    //СТАЛО ТАК
-
-    @OneToOne(cascade = CascadeType.ALL)
+    // Связь с детальной информацией о транзакции (сумма, тип - дебет/кредит)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "reg_transaction_id")
     private RegTransaction regTransaction;
 
     // Кто отправил деньги (или начал операцию)
-
-    //БЫЛО ТАК
-//    @OneToOne
-//    @JoinColumn(name = "subject_id")
-//    private Subject subjectSender;
-    //СТАЛО ТАК
-
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "subject_id")
     private Subject subjectSender;
 
     // Кто получил деньги (или был получателем в операции)
-    //БЫЛО ТАК
-//    @OneToOne
-//    @JoinColumn(name = "subject_getter_id")
-//    private Subject subjectGetter;
-    //СТАЛО ТАК
-
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "subject_getter_id")
     private Subject subjectGetter;
 
+    /**
+     * Проверяет, можно ли редактировать транзакцию.
+     * В соответствии с требованиями: только транзакции со статусом NEW могут быть отредактированы
+     */
+    public boolean isEditable() {
+        return status == TransactionStatus.NEW;
+    }
+
+    /**
+     * Проверяет, можно ли удалить транзакцию.
+     * В соответствии с требованиями: транзакции со статусами ACCEPTED, PROCESSING, CANCELED, PAYMENT_COMPLETED и RETURN
+     * не могут быть удалены
+     */
+    public boolean isDeletable() {
+        return status != TransactionStatus.ACCEPTED &&
+               status != TransactionStatus.PROCESSING &&
+               status != TransactionStatus.CANCELED &&
+               status != TransactionStatus.PAYMENT_COMPLETED &&
+               status != TransactionStatus.RETURN;
+    }
 }

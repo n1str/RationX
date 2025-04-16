@@ -12,7 +12,7 @@ import lombok.Data;
 @Data
 public class Bank {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     // Уникальный номер банка (создаётся автоматически)
     private Long id;
 
@@ -27,6 +27,6 @@ public class Bank {
     @ManyToOne
     @JoinColumn(name = "subject_id")
     // Владелец этого банка (участник операции)
-    Subject subject;
+    private Subject subject;
 
 }
