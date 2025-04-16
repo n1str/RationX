@@ -82,7 +82,7 @@ public class AuthController {
 
          userRepository.save(newUser);
 
-        return "redirect:/login";
+         return "redirect:/dashboard";
     }
 
 }

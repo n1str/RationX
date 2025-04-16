@@ -3,6 +3,7 @@ package ru.rationx.financeapp.models.transaction;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import ru.rationx.financeapp.models.Bank;
 import ru.rationx.financeapp.models.Subject;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,12 @@ public class Transaction {
     // -----------------
     // Банк
 
+    @ManyToOne(cascade = CascadeType.ALL)
+    private Bank senderBank;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    private Bank recipientBank;
+
     //------------------
 
     @NotNull
@@ -61,17 +68,38 @@ public class Transaction {
     //  one to one
 
     // Ссылка на отдельный объект, где хранится инфа о том, дебет это или кредит
-    @OneToOne
+
+    //БЫЛО ТАК
+//    @OneToOne
+//    @JoinColumn(name = "reg_transaction_id")
+//    private RegTransaction regTransaction;
+
+    //СТАЛО ТАК
+
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "reg_transaction_id")
     private RegTransaction regTransaction;
 
     // Кто отправил деньги (или начал операцию)
-    @OneToOne
+
+    //БЫЛО ТАК
+//    @OneToOne
+//    @JoinColumn(name = "subject_id")
+//    private Subject subjectSender;
+    //СТАЛО ТАК
+
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "subject_id")
     private Subject subjectSender;
 
     // Кто получил деньги (или был получателем в операции)
-    @OneToOne
+    //БЫЛО ТАК
+//    @OneToOne
+//    @JoinColumn(name = "subject_getter_id")
+//    private Subject subjectGetter;
+    //СТАЛО ТАК
+
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "subject_getter_id")
     private Subject subjectGetter;
 

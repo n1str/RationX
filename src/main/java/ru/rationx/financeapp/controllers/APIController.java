@@ -23,4 +23,9 @@ public class APIController {
         // Возвращаем шаблон transactions.html
         return "transactions";
     }
+
+    @GetMapping("/dashboard")
+    public String dashboard() {
+        return "dashboard";
+    }
 }

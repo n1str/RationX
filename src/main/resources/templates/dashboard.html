@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>RationX - Тестирование API</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1, h2 { color: #333; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 5px; }
+    form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+    button { padding: 10px 15px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+<div th:replace="header :: header"></div>
+<div class="container">
+  <h1>Финансовый мониторинг - Проверка API</h1>
+
+  <!-- Форма создания транзакции -->
+  <div class="section">
+    <h2>Создать новую транзакцию</h2>
+    <form id="createForm">
+      <div>
+        <label>Дата и время:</label>
+        <input type="datetime-local" id="dateTime" required>
+      </div>
+      <div>
+        <label>Статус:</label>
+        <select id="status">
+          <option value="NEW">Новая</option>
+          <option value="ACCEPTED">Подтвержденная</option>
+          <option value="PROCESSING">В обработке</option>
+          <option value="CANCELED">Отмена</option>
+          <option value="PAYMENT_COMPLETED">Платеж выполнен</option>
+          <option value="PAYMENT_DELETED">Платеж удален</option>
+          <option value="RETURN">Возврат</option>
+        </select>
+      </div>
+      <div>
+        <label>Тип транзакции:</label>
+        <select id="transactionType">
+          <option value="DEBIT">Поступление</option>
+          <option value="CREDIT">Расход</option>
+        </select>
+      </div>
+      <div>
+        <label>Сумма:</label>
+        <input type="number" id="sum" step="0.01" min="0.01" required>
+      </div>
+      <div>
+        <label>Комментарий:</label>
+        <input type="text" id="comment">
+      </div>
+      <div>
+        <label>Банк отправителя:</label>
+        <input type="text" id="senderBank">
+      </div>
+      <div>
+        <label>Банк получателя:</label>
+        <input type="text" id="recipientBank">
+      </div>
+      <div>
+        <label>ИНН получателя:</label>
+        <input type="text" id="inn">
+      </div>
+      <div>
+        <button type="button" onclick="createTransaction()">Создать транзакцию</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Список транзакций -->
+  <div class="section">
+    <h2>Список транзакций</h2>
+    <button type="button" onclick="loadTransactions()">Обновить список</button>
+    <table id="transactionsTable">
+      <thead>
+      <tr>
+        <th>ID</th>
+        <th>Дата</th>
+        <th>Статус</th>
+        <th>Тип</th>
+        <th>Сумма</th>
+        <th>Комментарий</th>
+      </tr>
+      </thead>
+      <tbody id="transactionsBody">
+      <!-- Данные будут загружены через AJAX -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Фильтры -->
+  <div class="section">
+    <h2>Фильтры транзакций</h2>
+    <div>
+      <label>Фильтровать по статусу:</label>
+      <select id="statusFilter">
+        <option value="">Все статусы</option>
+        <option value="NEW">Новая</option>
+        <option value="ACCEPTED">Подтвержденная</option>
+        <option value="PROCESSING">В обработке</option>
+        <option value="CANCELED">Отмена</option>
+        <option value="PAYMENT_COMPLETED">Платеж выполнен</option>
+        <option value="PAYMENT_DELETED">Платеж удален</option>
+        <option value="RETURN">Возврат</option>
+      </select>
+      <button onclick="filterByStatus()">Применить</button>
+    </div>
+    <div>
+      <label>Фильтровать по типу:</label>
+      <select id="typeFilter">
+        <option value="">Все типы</option>
+        <option value="DEBIT">Поступление</option>
+        <option value="CREDIT">Расход</option>
+      </select>
+      <button onclick="filterByType()">Применить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Загрузка всех транзакций
+  function loadTransactions() {
+    fetch('/api/transactions')
+            .then(response => response.json())
+            .then(data => {
+              const tbody = document.getElementById('transactionsBody');
+              tbody.innerHTML = '';
+
+              data.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                            <td>${tx.id}</td>
+                            <td>${new Date(tx.dateTime).toLocaleString()}</td>
+                            <td>${tx.status}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.transactionType : 'N/A'}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.sum : 'N/A'}</td>
+                            <td>${tx.comment || '-'}</td>
+                        `;
+                tbody.appendChild(row);
+              });
+            })
+            .catch(error => console.error('Ошибка при загрузке транзакций:', error));
+  }
+
+  // Создание новой транзакции
+  function createTransaction() {
+    // Собираем данные формы
+    const dateTime = document.getElementById('dateTime').value;
+    const status = document.getElementById('status').value;
+    const comment = document.getElementById('comment').value;
+    const transactionType = document.getElementById('transactionType').value;
+    const sum = document.getElementById('sum').value;
+    const senderBank = document.getElementById('senderBank').value;
+    const recipientBank = document.getElementById('recipientBank').value;
+    const inn = document.getElementById('inn').value;
+
+    // Создаем объект для отправки
+    const transaction = {
+      dateTime: dateTime,
+      status: status,
+      comment: comment,
+      regTransaction: {
+        transactionType: transactionType,
+        sum: parseFloat(sum)
+      }
+    };
+
+    // Если заполнены банки, добавляем их
+    if (senderBank) {
+      transaction.senderBank = { nameBank: senderBank };
+    }
+
+    if (recipientBank) {
+      transaction.recipientBank = { nameBank: recipientBank };
+    }
+
+    // Если заполнен ИНН
+    if (inn) {
+      transaction.subjectGetter = { inn: inn };
+    }
+
+    // Отправляем запрос на создание
+    fetch('/api/transactions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(transaction)
+    })
+            .then(response => {
+              if (response.ok) {
+                alert('Транзакция успешно создана!');
+                loadTransactions(); // Обновляем список
+                return response.json();
+              }
+              throw new Error('Ошибка при создании транзакции');
+            })
+            .catch(error => {
+              console.error('Ошибка:', error);
+              alert('Не удалось создать транзакцию. Проверьте консоль для деталей.');
+            });
+  }
+
+  // Фильтрация по статусу
+  function filterByStatus() {
+    const status = document.getElementById('statusFilter').value;
+    if (!status) {
+      loadTransactions();
+      return;
+    }
+
+    fetch(`/api/transactions/status?status=${status}`)
+            .then(response => response.json())
+            .then(data => {
+              const tbody = document.getElementById('transactionsBody');
+              tbody.innerHTML = '';
+
+              data.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                            <td>${tx.id}</td>
+                            <td>${new Date(tx.dateTime).toLocaleString()}</td>
+                            <td>${tx.status}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.transactionType : 'N/A'}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.sum : 'N/A'}</td>
+                            <td>${tx.comment || '-'}</td>
+                        `;
+                tbody.appendChild(row);
+              });
+            })
+            .catch(error => console.error('Ошибка при фильтрации:', error));
+  }
+
+  // Фильтрация по типу
+  function filterByType() {
+    const type = document.getElementById('typeFilter').value;
+    if (!type) {
+      loadTransactions();
+      return;
+    }
+
+    fetch(`/api/transactions/type?type=${type}`)
+            .then(response => response.json())
+            .then(data => {
+              const tbody = document.getElementById('transactionsBody');
+              tbody.innerHTML = '';
+
+              data.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                            <td>${tx.id}</td>
+                            <td>${new Date(tx.dateTime).toLocaleString()}</td>
+                            <td>${tx.status}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.transactionType : 'N/A'}</td>
+                            <td>${tx.regTransaction ? tx.regTransaction.sum : 'N/A'}</td>
+                            <td>${tx.comment || '-'}</td>
+                        `;
+                tbody.appendChild(row);
+              });
+            })
+            .catch(error => console.error('Ошибка при фильтрации:', error));
+  }
+
+  // Загружаем транзакции при загрузке страницы
+  document.addEventListener('DOMContentLoaded', loadTransactions);
+</script>
+</body>
+</html>

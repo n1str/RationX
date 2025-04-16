@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +31,12 @@ public class AuthUserConfiguration{
     @Bean
     public SecurityFilterChain appSecurityConfiguration(HttpSecurity http) throws Exception {
         http.userDetailsService(userService);
+
+        // ВАЖНО: отключаем CSRF для API!
+        http.csrf(csrf -> csrf
+                .disable()  // Полностью отключаем CSRF для тестирования
+        );
+
         http.authorizeHttpRequests(
             auth -> auth
                 // Эти папки (css, js, img) доступны всем, даже если не вошёл в систему
@@ -37,9 +44,9 @@ public class AuthUserConfiguration{
                 // Страницы входа и регистрации доступны всем
                 .requestMatchers("/login","/register").permitAll()
                 // Всё, что начинается с /api/ — только для авторизованных
-                .requestMatchers("/api/**").authenticated()
+                .requestMatchers("/api/**").permitAll() //ТЕСТИЛ УБЕРИТЕ КАК РАЗБЕРЕТЕСЬ С CSRF
                 // Все остальные страницы — только для авторизованных
-                .anyRequest().authenticated()
+                .anyRequest().permitAll() //ТЕСТИЛ УБЕРИТЕ КАК РАЗБЕРЕТЕСЬ С CSRF
         )
         .formLogin(form -> form
             .usernameParameter("username")
@@ -58,8 +65,13 @@ public class AuthUserConfiguration{
             .invalidateHttpSession(true) // Сразу "забываем" пользователя
             .clearAuthentication(true) // Очищаем данные о входе
         );
+
         return http.build();
+
+
     }
+
+
 
     /**
      * Здесь настраивается шифровка паролей.
