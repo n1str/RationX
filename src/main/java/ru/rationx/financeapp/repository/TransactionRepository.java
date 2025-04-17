@@ -4,11 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import ru.rationx.financeapp.models.Subject;
-import ru.rationx.financeapp.models.transaction.Category;
-import ru.rationx.financeapp.models.transaction.RegTransaction;
-import ru.rationx.financeapp.models.transaction.Transaction;
-import ru.rationx.financeapp.models.transaction.TransactionType;
+import ru.rationx.financeapp.models.transaction.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +18,7 @@ import java.util.List;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
     // По статусу
-    List<Transaction> findByStatus(Transaction.TransactionStatus status);
+    List<Transaction> findByStatus(TransactionStatus status);
 
     // По ИНН получателя
     @Query("SELECT t FROM Transaction t WHERE t.subjectGetter.inn = :inn")

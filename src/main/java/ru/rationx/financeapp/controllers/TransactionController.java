@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.rationx.financeapp.models.transaction.Category;
 import ru.rationx.financeapp.models.transaction.Transaction;
-import ru.rationx.financeapp.models.transaction.Transaction.TransactionStatus;
+import ru.rationx.financeapp.models.transaction.TransactionStatus;
 import ru.rationx.financeapp.models.transaction.TransactionType;
 import ru.rationx.financeapp.services.CategoryService;
 import ru.rationx.financeapp.services.TransactionService;
