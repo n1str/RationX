@@ -24,8 +24,5 @@ public class APIController {
         return "transactions";
     }
 
-    @GetMapping("/dashboard")
-    public String dashboard() {
-        return "dashboard";
-    }
+
 }
