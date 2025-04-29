@@ -33,7 +33,6 @@ import ru.rationx.financeapp.models.transaction.TransactionType;
 *
 * */
 
-
 @Builder
 @Data
 @Getter

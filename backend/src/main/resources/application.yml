@@ -1,0 +1,27 @@
+spring:
+  jwt:
+    secret: ${JWT_SECRET:aVeryLongAndSecureSecretKeyForJwtTokensInTheApplication}
+  datasource:
+    url: jdbc:postgresql://176.124.215.222:5432/finance_db
+    password: ovedet92
+    username: matthewencore
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+      default_schema: finance
+  application:
+    name: FinanceApp
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    ru.rationx.financeapp: DEBUG
+    org.springframework.security: INFO
+    org.springframework.web: INFO
