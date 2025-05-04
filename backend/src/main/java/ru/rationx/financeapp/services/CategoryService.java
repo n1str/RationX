@@ -10,6 +10,7 @@ import ru.rationx.financeapp.models.transaction.exception.DoNotFoundCategory;
 import ru.rationx.financeapp.repository.CategoryRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -49,7 +50,7 @@ public class CategoryService {
     
     /**
      * Создать новую категорию
-     */
+    */
 
 
     public Category findOrCreateCategory(String category, TransactionType transactionType){
@@ -68,6 +69,30 @@ public class CategoryService {
             categoryRepository.save(cat);
             return cat;
         }
+    }
+
+    // Обновить данные с использованием Map
+
+    public void updateCategoryMap(Map<String, Object> data, Category category) {
+        if (data == null) {
+            log.error("К сожалению входные данные не должны быть null");
+            return;
+        }
+
+        if (String.valueOf(data.get("category")).isEmpty() || String.valueOf(data.get("type")).isEmpty()) {
+            log.error("К сожалению входные данные не должны быть пуста");
+            return;
+        }
+
+        if (String.valueOf(data.get("category")).equalsIgnoreCase(category.getName())) {
+           log.warn("Такое наименование категории уже имеется в информационной базе. Попробуйте назвать иначе.");
+        }
+
+        category.setName(String.valueOf(data.get("category")));
+        category.setApplicableType(TransactionType.valueOf(String.valueOf(data.get("type"))));
+
+        categoryRepository.save(category);
+        log.info("Сохранение категории успешно.");
     }
 
 

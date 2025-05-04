@@ -37,6 +37,10 @@ public class Subject {
         public String getDescription() {
             return description;
         }
+
+        public boolean isExist(){
+            return this.description.isEmpty();
+        }
     }
 
     // Имя участника (например, Иван Иванов или ООО "Ромашка")

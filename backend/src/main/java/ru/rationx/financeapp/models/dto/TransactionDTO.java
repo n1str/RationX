@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import ru.rationx.financeapp.models.subject.Subject;
+import ru.rationx.financeapp.models.transaction.TransactionStatus;
 import ru.rationx.financeapp.models.transaction.TransactionType;
 /*
 
@@ -38,6 +39,8 @@ import ru.rationx.financeapp.models.transaction.TransactionType;
 @Getter
 @Setter
 public class TransactionDTO {
+
+    TransactionStatus status;
 
     @NotNull
     private Subject.PersonType personType;
@@ -101,6 +104,7 @@ public class TransactionDTO {
 
     @NotNull
     private String category;
+
     @NotNull
     private TransactionType transactionType;
 

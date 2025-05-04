@@ -12,6 +12,8 @@ public enum TransactionStatus {
     PAYMENT_DELETED("Платеж удален"),
     RETURN("Возврат");
 
+    // Не допущены к редактированию операции со статусами: подтвержденная, в обработке, отменена, платеж выполнен, платеж удален, возврат.
+
     private final String description;
 
     TransactionStatus(String description) {

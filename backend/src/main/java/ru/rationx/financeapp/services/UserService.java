@@ -12,6 +12,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     public User getUser(String s){
-        return userRepository.findByUsername(s).orElseThrow(() -> new UsernameNotFoundException("Пользователь по такому username не найден"));
+        return userRepository.findByUsername(s)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь по такому username не найден"));
     }
 }

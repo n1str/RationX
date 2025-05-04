@@ -254,18 +254,13 @@ public class TransactionController {
             @PathVariable Long id,
             @RequestBody TransactionDTO updatedTransaction,
             Principal principal )  {
-        try {
+
             log.info("PUT /api/transactions/{} - User: {}", id, principal.getName());
             
             Transaction transaction = transactionService.update(id, updatedTransaction);
             log.info("Updated transaction with ID {}", id);
             
             return ResponseEntity.ok(transaction);
-        } catch (Exception e) {
-            log.error("Error updating transaction with ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Ошибка при обновлении транзакции: " + e.getMessage()));
-        }
     }
     
     @DeleteMapping("/{id}")

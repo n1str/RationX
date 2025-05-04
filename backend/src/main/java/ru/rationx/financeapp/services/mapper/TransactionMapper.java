@@ -11,5 +11,13 @@ public interface  TransactionMapper {
 
     @Mapping(target = "id",ignore = true)
     @Mapping(target = "user",ignore = true)
+    @Mapping(target = "status",ignore = true)
+    @Mapping(target = "senderBank",ignore = true)
+    @Mapping(target = "recipientBank",ignore = true)
+    @Mapping(target = "dateTime",ignore = true)
+    @Mapping(target = "regTransaction",ignore = true)
+    @Mapping(target = "subjectSender",ignore = true)
+    @Mapping(target = "subjectGetter",ignore = true)
+    @Mapping(target = "category",ignore = true)
     void updateTransaction(TransactionDTO transactionDTO, @MappingTarget Transaction transaction);
 }

@@ -25,8 +25,10 @@ public class Bank {
     private String nameBank;
 
     // Основной расчетный счет
+    @Column(unique = true)
     private String bill;
     // Расчетный счет
+    @Column(unique = true)
     private String rbill;
 
     @ManyToOne

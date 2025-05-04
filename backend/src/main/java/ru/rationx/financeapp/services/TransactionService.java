@@ -11,6 +11,7 @@ import ru.rationx.financeapp.repository.TransactionRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
+import ru.rationx.financeapp.services.exception.NoPermStatusException;
 import ru.rationx.financeapp.services.mapper.TransactionMapper;
 
 import java.math.BigDecimal;
@@ -18,9 +19,7 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +31,7 @@ public class TransactionService {
     private final BankService bankService;
     private final CategoryService categoryService;
     private final UserService userService;
+    private final RegService regService;
 
     private final TransactionMapper transactionMapper;
 
@@ -158,8 +158,94 @@ public class TransactionService {
     public Transaction update(Long id, TransactionDTO updatedData) {
         // Получаем транзакцию по id
         Transaction transaction = getById(id);
+        if (!transaction.isEditable()) {
+            log.error("Возникла ошибка при редактировании, отсутствие прав что бы отредактировать транзакцию. ");
+            throw new NoPermStatusException("У вас нет разрешения что бы редактировать транзакцию с такими статусами: " +
+                    "{подтвержденная, в обработке, отменена, платеж выполнен, платеж удален, возврат}");
+        }
 
         transactionMapper.updateTransaction(updatedData,transaction);
+
+        // Категория
+        Map<String, Object> categoryMap = new HashMap<>();
+            categoryMap.put("category",updatedData.getCategory());
+            categoryMap.put("type",updatedData.getTypeOperation());
+
+        Category category = categoryService.findOrCreateCategory(updatedData.getCategory(),
+                updatedData.getTransactionType());
+
+            categoryService.updateCategoryMap(categoryMap, category);
+
+        // Субъект (главный)
+        Map<String,Object> subject0 = new HashMap<>();
+            subject0.put("name",updatedData.getName());
+            subject0.put("personType",updatedData.getPersonType());
+            subject0.put("inn",updatedData.getInn());
+            subject0.put("address",updatedData.getAddress());
+            subject0.put("phone", updatedData.getPhone());
+
+        Subject sub0 = subjectService.getOrCreateSubject(
+                updatedData.getInn(),
+                updatedData.getName(),
+                updatedData.getPersonType(),
+                updatedData.getAddress(),
+                updatedData.getPhone()
+        );
+
+        subjectService.updateSubject(subject0,sub0);
+
+        // Субъект (дочка)
+        Map<String,Object> subject1 = new HashMap<>();
+            subject1.put("name",updatedData.getNameRecipient());
+            subject1.put("personType",updatedData.getPersonTypeRecipient());
+            subject1.put("inn",updatedData.getInnRecipient());
+            subject1.put("address",updatedData.getAddressRecipient());
+            subject1.put("phone", updatedData.getRecipientPhoneRecipient());
+
+        Subject sub1 = subjectService.getOrCreateSubject(
+                updatedData.getInnRecipient(),
+                updatedData.getNameRecipient(),
+                updatedData.getPersonTypeRecipient(),
+                updatedData.getAddressRecipient(),
+                updatedData.getRecipientPhoneRecipient()
+        );
+
+        subjectService.updateSubject(subject1,sub1);
+
+
+        // Обновление данных об банках главного субъекта
+        Map<String,Object> bank1 = new HashMap<>();
+            bank1.put("nameBank",updatedData.getNameBank());
+            bank1.put("bill",updatedData.getBill());
+            bank1.put("rBill",updatedData.getRBill());
+            bank1.put("subj",sub0);
+        bankService.updateOrCreateBank(bank1);
+
+
+        // Обновление данных об банках дочернего субъекта
+        Map<String,Object> bank2 = new HashMap<>();
+            bank2.put("nameBank",updatedData.getNameBankRecip());
+            bank2.put("bill",updatedData.getBillRecip());
+            bank2.put("rBill",updatedData.getRBillRecip());
+            bank2.put("subj",sub1);
+        bankService.updateOrCreateBank(bank2);
+
+
+
+        // Обновление данных о регистрах накопления которые приход/расход
+        regService.updateReg(transaction,updatedData.getSum(), updatedData.getTransactionType());
+
+        // Ставим статус
+        if (updatedData.getStatus() != null || !updatedData.getStatus().getDescription().isBlank()) {
+            log.info("Подтягиваем статус транзакции `{}`...",updatedData.getStatus());
+            transaction.setStatus(updatedData.getStatus());
+        }
+
+        // Обновляем ссылки
+        transaction.setSubjectSender(sub0);
+        transaction.setSubjectGetter(sub1);
+        transaction.setCategory(category);
+
 
         return transactionRepository.save(transaction);
     }
