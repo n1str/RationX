@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -29,10 +29,8 @@ import {
   BarChart as StatisticsIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
-  ChevronLeft as ChevronLeftIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks/reduxHooks';
 import { logout } from '../../store/slices/authSlice';
 
@@ -88,79 +86,65 @@ const Layout: React.FC = () => {
     { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
   ];
 
+  // Упрощенный компонент элемента меню без анимаций
   const NavListItem = ({ icon, text, path, isSelected }: {
     icon: React.ReactNode;
     text: string;
     path: string;
     isSelected: boolean;
   }) => (
-    <motion.div
-      whileHover={{ x: 8, transition: { duration: 0.2 } }}
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3 }}
+    <ListItemButton
+      onClick={() => handleNavigate(path)}
+      selected={isSelected}
+      sx={{ 
+        borderRadius: 2, 
+        py: 1.5,
+        mb: 1,
+        ...(isSelected && {
+          background: theme => theme.palette.mode === 'dark' 
+            ? 'linear-gradient(90deg, rgba(25,118,210,0.2) 0%, rgba(25,118,210,0) 100%)' 
+            : 'linear-gradient(90deg, rgba(25,118,210,0.1) 0%, rgba(25,118,210,0) 100%)',
+          borderLeft: theme => `4px solid ${theme.palette.primary.main}`,
+        })
+      }}
     >
-      <ListItemButton
-        onClick={() => handleNavigate(path)}
-        selected={isSelected}
-        sx={{ 
-          borderRadius: 2, 
-          py: 1.5,
-          mb: 1,
-          ...(isSelected && {
-            background: theme => theme.palette.mode === 'dark' 
-              ? 'linear-gradient(90deg, rgba(25,118,210,0.2) 0%, rgba(25,118,210,0) 100%)' 
-              : 'linear-gradient(90deg, rgba(25,118,210,0.1) 0%, rgba(25,118,210,0) 100%)',
-            borderLeft: theme => `4px solid ${theme.palette.primary.main}`,
-          })
-        }}
-      >
-        <ListItemIcon sx={{ 
-          minWidth: 40,
-          color: isSelected ? 'primary.main' : 'inherit'
-        }}>
-          {icon}
-        </ListItemIcon>
-        <ListItemText 
-          primary={
-            <Typography sx={{ 
-              fontWeight: isSelected ? 600 : 400,
-              transition: 'all 0.2s'
-            }}>
-              {text}
-            </Typography>
-          } 
-        />
-        {isSelected && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Box sx={{ 
-              width: 6, 
-              height: 6, 
-              borderRadius: '50%', 
-              bgcolor: 'primary.main',
-              marginLeft: 1
-            }} />
-          </motion.div>
-        )}
-      </ListItemButton>
-    </motion.div>
+      <ListItemIcon sx={{ 
+        minWidth: 40,
+        color: isSelected ? 'primary.main' : 'inherit'
+      }}>
+        {icon}
+      </ListItemIcon>
+      <ListItemText 
+        primary={
+          <Typography sx={{ 
+            fontWeight: isSelected ? 600 : 400,
+          }}>
+            {text}
+          </Typography>
+        } 
+      />
+      {isSelected && (
+        <Box sx={{ 
+          width: 6, 
+          height: 6, 
+          borderRadius: '50%', 
+          bgcolor: 'primary.main',
+          marginLeft: 1
+        }} />
+      )}
+    </ListItemButton>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8f9fa' }}> {/* Изменен фоновый цвет */}
       {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{
           width: '100%',
           zIndex: theme.zIndex.drawer + 1,
-          boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
-          backdropFilter: 'blur(20px)',
-          backgroundColor: 'rgba(30, 30, 30, 0.8)',
+          boxShadow: '0 2px 10px 0 rgba(0,0,0,0.05)',
+          backgroundColor: 'rgba(30, 30, 30, 0.95)',
         }}
       >
         <Toolbar>
@@ -261,16 +245,15 @@ const Layout: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            backgroundColor: 'rgba(25, 25, 25, 0.95)', // Немного прозрачный фон
-            backdropFilter: 'blur(8px)', // Эффект размытия
+            backgroundColor: 'rgba(25, 25, 25, 0.95)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
             borderRight: theme => `1px solid ${theme.palette.divider}`,
-            color: '#fff' // Белый текст для лучшей читаемости
+            color: '#fff'
           },
         }}
       >
         <Toolbar /> {/* Пространство для AppBar */}
-        <Box sx={{ p: 3 }}> {/* Увеличил отступы */}
+        <Box sx={{ p: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main', mb: 3 }}>
             FINANCE APP
           </Typography>
@@ -307,52 +290,29 @@ const Layout: React.FC = () => {
         </List>
       </Drawer>
       
-      {/* Main Content - всегда занимает все доступное пространство */}
+      {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           width: '100%',
           mt: '64px', // Высота AppBar
-          p: 0, // Убираем отступы внешнего бокса
-          display: 'flex',
-          justifyContent: 'center', // Центрируем содержимое горизонтально
-          // Убираем margin-left, который зависит от состояния меню
-          transition: theme.transitions.create('margin-left', {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
+          height: 'calc(100vh - 64px)',
+          overflow: 'auto'
         }}
       >
         <Container 
+          maxWidth={false} // Позволяет контенту занимать всю ширину
+          disableGutters // Убираем отступы по бокам
           sx={{ 
-            py: 3,
-            px: { xs: 2, sm: 3 },
-            mx: 'auto',
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'flex-start', // Выравниваем контент по левому краю
-            width: '100%',
-            maxWidth: { 
-              xs: '100%',
-              sm: '100%',
-              md: '1200px'  // Увеличиваем максимальную ширину для больших экранов
-            }
+            mx: 0, // Уберем все автоматические отступы
+            px: 0,
+            width: '100%', 
+            height: '100%',
+            background: 'linear-gradient(to bottom, #f0f3f7, #e6ecf5)'
           }}
-          disableGutters
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ width: '100%' }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <Outlet />
         </Container>
       </Box>
     </Box>

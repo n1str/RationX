@@ -34,13 +34,13 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ru } from 'date-fns/locale';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks/reduxHooks';
 import { 
   createTransaction, 
   updateTransaction, 
   fetchTransactionById,
-  clearSelectedTransaction
+  clearSelectedTransaction,
+  fetchAllTransactions
 } from '../../store/slices/transactionsSlice';
 import { 
   fetchAllCategories
@@ -83,7 +83,7 @@ const TransactionFormModal: React.FC = () => {
   const [formData, setFormData] = useState<Transaction>(initialFormState);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [date, setDate] = useState<Date | null>(new Date());
-  const [successMessage, setSuccessMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   // Фильтруем категории в зависимости от типа транзакции
   const filteredCategories = Array.isArray(categories) ? categories.filter(
@@ -111,12 +111,13 @@ const TransactionFormModal: React.FC = () => {
     }
   }, [isEditing, selectedTransaction]);
   
-  // Handle close
+  // Функция закрытия и перенаправления
   const handleClose = () => {
+    // Сначала выполняем навигацию напрямую
+    navigate('/transactions', { replace: true });
+    
+    // Затем закрываем модальное окно
     setOpen(false);
-    setTimeout(() => {
-      navigate('/transactions');
-    }, 300);
   };
   
   // Handle change
@@ -178,51 +179,30 @@ const TransactionFormModal: React.FC = () => {
       return;
     }
     
+    setIsSaving(true);
+    
     try {
       if (isEditing && id) {
         await dispatch(updateTransaction({ id: Number(id), data: formData })).unwrap();
-        setSuccessMessage('Транзакция обновлена успешно');
       } else {
         await dispatch(createTransaction(formData)).unwrap();
-        setSuccessMessage('Транзакция создана успешно');
-        setFormData(initialFormState);
-        setDate(new Date());
       }
       
-      // Navigate back after short delay
-      setTimeout(() => {
-        handleClose();
-      }, 1500);
+      // Сразу перенаправляем на страницу транзакций
+      handleClose();
     } catch (err) {
       console.error('Ошибка сохранения транзакции:', err);
+      setIsSaving(false);
     }
-  };
-  
-  const transitionVariants = {
-    initial: { y: 50, opacity: 0 },
-    animate: { y: 0, opacity: 1 },
-    exit: { y: -50, opacity: 0 }
-  };
-  
-  const formControlVariants = {
-    initial: { opacity: 0, y: 10 },
-    animate: (i: number) => ({ 
-      opacity: 1, 
-      y: 0, 
-      transition: { 
-        delay: i * 0.1,
-        duration: 0.3,
-        ease: "easeOut"
-      } 
-    })
   };
   
   return (
     <Dialog 
       open={open} 
-      onClose={handleClose} 
+      onClose={isSaving ? undefined : handleClose}
       maxWidth="sm" 
       fullWidth
+      disableEscapeKeyDown={isSaving}
       PaperProps={{
         sx: {
           borderRadius: 2,
@@ -230,13 +210,6 @@ const TransactionFormModal: React.FC = () => {
           overflow: 'hidden'
         }
       }}
-      TransitionProps={{
-        component: motion.div,
-        variants: transitionVariants,
-        initial: "initial",
-        animate: "animate",
-        exit: "exit"
-      } as any}
     >
       <Box>
         <DialogTitle sx={{ 
@@ -249,14 +222,16 @@ const TransactionFormModal: React.FC = () => {
           <Typography variant="h6">
             {isEditing ? 'Редактировать транзакцию' : 'Новая транзакция'}
           </Typography>
-          <IconButton 
-            edge="end" 
-            color="inherit" 
-            onClick={handleClose}
-            size="small"
-          >
-            <Close />
-          </IconButton>
+          {!isSaving && (
+            <IconButton 
+              edge="end" 
+              color="inherit" 
+              onClick={handleClose}
+              size="small"
+            >
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         
         <DialogContent sx={{ p: 3 }}>
@@ -284,6 +259,7 @@ const TransactionFormModal: React.FC = () => {
                 fullWidth
                 size="medium"
                 sx={{ maxWidth: 350 }}
+                disabled={isSaving}
               >
                 <ToggleButton 
                   value="CREDIT" 
@@ -335,6 +311,7 @@ const TransactionFormModal: React.FC = () => {
                   label="Сумма"
                   size="medium"
                   variant="outlined"
+                  disabled={isSaving}
                 />
               </FormControl>
 
@@ -352,6 +329,7 @@ const TransactionFormModal: React.FC = () => {
                   label="Описание"
                   size="medium"
                   variant="outlined"
+                  disabled={isSaving}
                 />
               </FormControl>
 
@@ -361,6 +339,7 @@ const TransactionFormModal: React.FC = () => {
                     label="Дата транзакции"
                     value={date}
                     onChange={handleDateChange}
+                    disabled={isSaving}
                     slotProps={{
                       textField: {
                         fullWidth: true,
@@ -385,6 +364,7 @@ const TransactionFormModal: React.FC = () => {
                   label="Категория"
                   size="medium"
                   variant="outlined"
+                  disabled={isSaving}
                 >
                   <MenuItem value="">
                     <em>Выберите категорию</em>
@@ -421,6 +401,7 @@ const TransactionFormModal: React.FC = () => {
                   label="Статус"
                   size="medium"
                   variant="outlined"
+                  disabled={isSaving}
                 >
                   <MenuItem value="COMPLETED">Завершено</MenuItem>
                   <MenuItem value="PENDING">В ожидании</MenuItem>
@@ -430,9 +411,9 @@ const TransactionFormModal: React.FC = () => {
             </Stack>
           </Box>
           
-          {successMessage && (
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Typography color="success.main">{successMessage}</Typography>
+          {isSaving && (
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress size={40} />
             </Box>
           )}
         </DialogContent>
@@ -442,6 +423,7 @@ const TransactionFormModal: React.FC = () => {
             variant="outlined"
             onClick={handleClose}
             sx={{ minWidth: 100 }}
+            disabled={isSaving}
           >
             Отмена
           </Button>
@@ -450,8 +432,7 @@ const TransactionFormModal: React.FC = () => {
             variant="contained"
             onClick={(e) => handleSubmit(e as any)}
             color="primary"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+            disabled={isSaving}
             sx={{ minWidth: 120 }}
           >
             {isEditing ? 'Сохранить' : 'Создать'}

@@ -33,7 +33,6 @@ import {
   ReceiptLong,
   FilterAlt,
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/reduxHooks';
 import {
@@ -79,6 +78,105 @@ const formatDate = (dateString: string): string => {
     day: 'numeric',
   });
 };
+
+// Используем React.memo для предотвращения лишних рендеров
+const TransactionRow = React.memo(({ 
+  transaction, 
+  category, 
+  navigate, 
+  handleDeleteTransaction 
+}: { 
+  transaction: Transaction; 
+  category: any;
+  navigate: any;
+  handleDeleteTransaction: (id: number) => void;
+}) => {
+  return (
+    <TableRow
+      key={transaction.id}
+      hover
+      onClick={() => navigate(`/transactions/${transaction.id}`)}
+      sx={{ 
+        cursor: 'pointer',
+        '&:hover': { 
+          bgcolor: 'action.hover',
+        },
+        '&:last-child td, &:last-child th': { border: 0 },
+      }}
+    >
+      <TableCell>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+          }}
+        >
+          {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
+        </Box>
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+          {transaction.description}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {transaction.recipientName || '—'}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        {category?.name || 'Без категории'}
+      </TableCell>
+      <TableCell>
+        {formatDate(transaction.transactionDate)}
+      </TableCell>
+      <TableCell>
+        <Typography 
+          sx={{ 
+            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+            fontWeight: 600,
+          }}
+        >
+          {transaction.type === 'DEBIT' ? '-' : '+'}{formatCurrency(transaction.amount)}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        <Chip 
+          label={transaction.status} 
+          size="small"
+          color={getStatusChipColor(transaction.status) as any}
+          sx={{ borderRadius: 1 }}
+        />
+      </TableCell>
+      <TableCell align="right">
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Tooltip title="Редактировать">
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/transactions/${transaction.id}/edit`);
+              }}
+              size="small"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Удалить">
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteTransaction(transaction.id!);
+              }}
+              size="small"
+              color="error"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 const TransactionsList: React.FC = () => {
   const theme = useTheme();
@@ -307,89 +405,13 @@ const TransactionsList: React.FC = () => {
                       : null;
                     
                     return (
-                      <TableRow
+                      <TransactionRow
                         key={transaction.id}
-                        hover
-                        onClick={() => navigate(`/transactions/${transaction.id}`)}
-                        sx={{ 
-                          cursor: 'pointer',
-                          '&:hover': { 
-                            bgcolor: 'action.hover',
-                          },
-                          '&:last-child td, &:last-child th': { border: 0 },
-                        }}
-                      >
-                        <TableCell>
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
-                            }}
-                          >
-                            {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {transaction.description}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {transaction.recipientName || '—'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          {category?.name || 'Без категории'}
-                        </TableCell>
-                        <TableCell>
-                          {formatDate(transaction.transactionDate)}
-                        </TableCell>
-                        <TableCell>
-                          <Typography 
-                            sx={{ 
-                              color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {transaction.type === 'DEBIT' ? '-' : '+'}{formatCurrency(transaction.amount)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={transaction.status} 
-                            size="small"
-                            color={getStatusChipColor(transaction.status) as any}
-                            sx={{ borderRadius: 1 }}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <Tooltip title="Редактировать">
-                              <IconButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/transactions/${transaction.id}/edit`);
-                                }}
-                                size="small"
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Удалить">
-                              <IconButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTransaction(transaction.id!);
-                                }}
-                                size="small"
-                                color="error"
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
+                        transaction={transaction}
+                        category={category}
+                        navigate={navigate}
+                        handleDeleteTransaction={handleDeleteTransaction}
+                      />
                     );
                   })}
                 </TableBody>
@@ -443,4 +465,4 @@ const TransactionsList: React.FC = () => {
   );
 };
 
-export default TransactionsList;
+export default React.memo(TransactionsList);

@@ -7,7 +7,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ru } from 'date-fns/locale';
 import store from './store';
 import CustomThemeProvider from './utils/theme';
-import { Box } from '@mui/material';
+import React from 'react';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -23,7 +23,8 @@ import StatisticsPage from './pages/StatisticsPage';
 import Layout from './components/common/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 
-function App() {
+// Мемоизируем основной компонент приложения для предотвращения лишних перерисовок
+const App = React.memo(() => {
   return (
     <Provider store={store}>
       <CustomThemeProvider>
@@ -43,44 +44,11 @@ function App() {
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
 
-                  {/* Transactions Routes */}
+                  {/* Transactions Routes - без дополнительных оберток */}
                   <Route path="/transactions" element={<TransactionsPage />} />
-                  <Route path="/transactions/new" element={
-                    <Box sx={{
-                      position: 'relative',
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      overflow: 'visible',
-                      zIndex: 1400
-                    }}>
-                      <TransactionFormPage />
-                    </Box>
-                  } />
-                  <Route path="/transactions/:id" element={
-                    <Box sx={{
-                      position: 'relative',
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      overflow: 'visible',
-                      zIndex: 1400
-                    }}>
-                      <TransactionFormPage />
-                    </Box>
-                  } />
-                  <Route path="/transactions/:id/edit" element={
-                    <Box sx={{
-                      position: 'relative',
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      overflow: 'visible',
-                      zIndex: 1400
-                    }}>
-                      <TransactionFormPage />
-                    </Box>
-                  } />
+                  <Route path="/transactions/new" element={<TransactionFormPage />} />
+                  <Route path="/transactions/:id" element={<TransactionFormPage />} />
+                  <Route path="/transactions/:id/edit" element={<TransactionFormPage />} />
 
                   {/* Categories Routes */}
                   <Route path="/categories" element={<CategoriesPage />} />
@@ -101,6 +69,6 @@ function App() {
       </CustomThemeProvider>
     </Provider>
   );
-}
+});
 
 export default App;

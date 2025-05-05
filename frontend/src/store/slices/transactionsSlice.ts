@@ -247,7 +247,11 @@ const transactionsSlice = createSlice({
         state.error = null;
       })
       .addCase(createTransaction.fulfilled, (state, action: PayloadAction<Transaction>) => {
-        state.items.push(action.payload);
+        if (!Array.isArray(state.items)) {
+          state.items = [action.payload];
+        } else {
+          state.items = [action.payload, ...state.items];
+        }
         state.loading = false;
       })
       .addCase(createTransaction.rejected, (state, action) => {
@@ -278,7 +282,9 @@ const transactionsSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteTransaction.fulfilled, (state, action: PayloadAction<number>) => {
-        state.items = state.items.filter(transaction => transaction.id !== action.payload);
+        if (Array.isArray(state.items)) {
+          state.items = state.items.filter(item => item?.id !== action.payload);
+        }
         if (state.selectedTransaction?.id === action.payload) {
           state.selectedTransaction = null;
         }
