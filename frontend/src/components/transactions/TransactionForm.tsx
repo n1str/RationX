@@ -42,14 +42,19 @@ import {
   clearSelectedTransaction
 } from '../../store/slices/transactionsSlice';
 import { 
-  fetchAllCategories
+  fetchAllCategories,
+  fetchCategoriesByType
 } from '../../store/slices/categoriesSlice';
 import { 
   Transaction, 
-  TransactionStatus, 
   TransactionType,
   PersonType 
 } from '../../services/transactionService';
+import { Category } from '../../services/categoryService';
+
+// Объявляем константы для PersonType
+const PERSON_TYPE: PersonType = 'PERSON_TYPE';
+const LEGAL_TYPE: PersonType = 'LEGAL';
 
 const initialFormState: Partial<Transaction> = {
   sum: 0,
@@ -58,10 +63,9 @@ const initialFormState: Partial<Transaction> = {
   category: '',
   transactionType: 'DEBIT',
   typeOperation: 'DEBIT',
-  status: 'COMPLETED',
-  personType: 'INDIVIDUAL',
+  personType: PERSON_TYPE,
   inn: '000000000000', // Дефолтное значение для физлица
-  personTypeRecipient: 'INDIVIDUAL',
+  personTypeRecipient: PERSON_TYPE,
   innRecipient: '000000000000', // Дефолтное значение для физлица
   nameBank: 'Сбербанк', // Дефолтное значение
   nameBankRecip: 'Сбербанк', // Дефолтное значение
@@ -89,7 +93,6 @@ interface FormValues {
   description: string;
   transactionDate: string;
   categoryId: number | null;
-  status: Transaction['status'];
   notes?: string;
   recipientName?: string;
   recipientInn?: string;
@@ -107,7 +110,6 @@ interface FormErrors {
   nameBankRecip?: string;
   billRecip?: string;
   rBillRecip?: string;
-  status?: string;
   transactionType?: string;
   
   // Для совместимости со старым кодом
@@ -308,12 +310,6 @@ const TransactionForm: React.FC = () => {
       isValid = false;
     }
     
-    // Проверка статуса
-    if (!formData.status) {
-      errors.status = 'Статус обязателен';
-      isValid = false;
-    }
-    
     setFormErrors(errors);
     return isValid;
   };
@@ -343,15 +339,14 @@ const TransactionForm: React.FC = () => {
         typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
         type: formData.type || formData.transactionType || 'DEBIT',
         // Гарантируем наличие обязательных полей DTO
-        personType: formData.personType || 'INDIVIDUAL',
+        personType: formData.personType || PERSON_TYPE,
         inn: formData.inn || '000000000000',
-        personTypeRecipient: formData.personTypeRecipient || 'INDIVIDUAL', 
+        personTypeRecipient: formData.personTypeRecipient || PERSON_TYPE, 
         innRecipient: formData.innRecipient || '000000000000',
         nameBank: formData.nameBank || 'Сбербанк',
         nameBankRecip: formData.nameBankRecip || 'Сбербанк',
         billRecip: formData.billRecip || '40000000000000000000',
         rBillRecip: formData.rBillRecip || '40000000000000000000',
-        status: formData.status || 'COMPLETED',
         // Устанавливаем правильную дату
         transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       };
@@ -680,8 +675,8 @@ const TransactionForm: React.FC = () => {
                   onChange={handleChange as any}
                   displayEmpty
                 >
-                  <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
-                  <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                  <MenuItem value={PERSON_TYPE}>Физическое лицо</MenuItem>
+                  <MenuItem value={LEGAL_TYPE}>Юридическое лицо</MenuItem>
                 </Select>
               </FormControl>
             </motion.div>
@@ -704,7 +699,7 @@ const TransactionForm: React.FC = () => {
                   name="name"
                   value={formData.name || ''}
                   onChange={handleChange}
-                  placeholder={formData.personType === 'INDIVIDUAL' ? 'Иван Иванов' : 'ООО "Ромашка"'}
+                  placeholder={formData.personType === PERSON_TYPE ? 'Иван Иванов' : 'ООО "Ромашка"'}
                 />
               </FormControl>
             </motion.div>
@@ -732,11 +727,11 @@ const TransactionForm: React.FC = () => {
                       handleChange(e);
                     }
                   }}
-                  placeholder={formData.personType === 'INDIVIDUAL' ? '123456789012' : '1234567890'}
+                  placeholder={formData.personType === PERSON_TYPE ? '123456789012' : '1234567890'}
                   error={!!formErrors.inn}
-                  helperText={formErrors.inn || `ИНН должен содержать ${formData.personType === 'INDIVIDUAL' ? '12' : '10'} цифр (обязательное поле)`}
+                  helperText={formErrors.inn || `ИНН должен содержать ${formData.personType === PERSON_TYPE ? '12' : '10'} цифр (обязательное поле)`}
                   inputProps={{
-                    maxLength: formData.personType === 'INDIVIDUAL' ? 12 : 10
+                    maxLength: formData.personType === PERSON_TYPE ? 12 : 10
                   }}
                 />
               </FormControl>
@@ -825,8 +820,8 @@ const TransactionForm: React.FC = () => {
                   onChange={handleChange as any}
                   displayEmpty
                 >
-                  <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
-                  <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                  <MenuItem value={PERSON_TYPE}>Физическое лицо</MenuItem>
+                  <MenuItem value={LEGAL_TYPE}>Юридическое лицо</MenuItem>
                 </Select>
               </FormControl>
             </motion.div>
@@ -849,7 +844,7 @@ const TransactionForm: React.FC = () => {
                   name="nameRecipient"
                   value={formData.nameRecipient || ''}
                   onChange={handleChange}
-                  placeholder={formData.personTypeRecipient === 'INDIVIDUAL' ? 'Иван Иванов' : 'ООО "Ромашка"'}
+                  placeholder={formData.personTypeRecipient === PERSON_TYPE ? 'Иван Иванов' : 'ООО "Ромашка"'}
                 />
               </FormControl>
             </motion.div>
@@ -877,11 +872,11 @@ const TransactionForm: React.FC = () => {
                       handleChange(e);
                     }
                   }}
-                  placeholder={formData.personTypeRecipient === 'INDIVIDUAL' ? '123456789012' : '1234567890'}
+                  placeholder={formData.personTypeRecipient === PERSON_TYPE ? '123456789012' : '1234567890'}
                   error={!!formErrors.innRecipient}
-                  helperText={formErrors.innRecipient || `ИНН должен содержать ${formData.personTypeRecipient === 'INDIVIDUAL' ? '12' : '10'} цифр (обязательное поле)`}
+                  helperText={formErrors.innRecipient || `ИНН должен содержать ${formData.personTypeRecipient === PERSON_TYPE ? '12' : '10'} цифр (обязательное поле)`}
                   inputProps={{
-                    maxLength: formData.personTypeRecipient === 'INDIVIDUAL' ? 12 : 10
+                    maxLength: formData.personTypeRecipient === PERSON_TYPE ? 12 : 10
                   }}
                 />
               </FormControl>
@@ -1220,47 +1215,6 @@ const TransactionForm: React.FC = () => {
                 </Select>
                 {formErrors.category && (
                   <FormHelperText error>{formErrors.category}</FormHelperText>
-                )}
-              </FormControl>
-            </motion.div>
-
-            <motion.div
-              initial="initial"
-              animate="animate"
-              variants={formControlVariants}
-              custom={21}
-            >
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <FormLabel
-                  id="transaction-status-label"
-                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
-                >
-                  Статус
-                </FormLabel>
-                <Select
-                  id="transaction-status"
-                  name="status"
-                  value={formData.status || 'COMPLETED'}
-                  onChange={(e) => {
-                    // Явно типизируем e как React.ChangeEvent с нужной структурой
-                    const event = {
-                      target: {
-                        name: 'status',
-                        value: e.target.value
-                      }
-                    } as unknown as React.ChangeEvent<HTMLInputElement>;
-                    handleChange(event);
-                  }}
-                  displayEmpty
-                  error={!!formErrors.status}
-                >
-                  <MenuItem value="COMPLETED">Завершено</MenuItem>
-                  <MenuItem value="PENDING">В ожидании</MenuItem>
-                  <MenuItem value="CANCELLED">Отменено</MenuItem>
-                  <MenuItem value="FAILED">Ошибка</MenuItem>
-                </Select>
-                {formErrors.status && (
-                  <FormHelperText error>{formErrors.status}</FormHelperText>
                 )}
               </FormControl>
             </motion.div>

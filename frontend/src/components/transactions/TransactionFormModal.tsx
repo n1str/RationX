@@ -54,54 +54,136 @@ import {
   fetchAllCategories,
   fetchCategoriesByType
 } from '../../store/slices/categoriesSlice';
-import { Transaction, TransactionStatus, TransactionType, PersonType } from '../../services/transactionService';
+import { Transaction, TransactionType, PersonType } from '../../services/transactionService';
 import { Category } from '../../services/categoryService';
 
-const initialFormState: Partial<Transaction> = {
+// Объявляем константы для PersonType чтобы избежать ошибок со строковыми литералами
+const PERSON_TYPE: PersonType = 'PERSON_TYPE';
+const LEGAL_TYPE: PersonType = 'LEGAL';
+
+// Создаем специальный интерфейс для нашей формы
+interface TransactionFormData {
+  id?: number;
+  
+  // Отправитель (соответствует полям в TransactionDTO)
+  personType: PersonType;
+  name?: string;
+  inn: string;
+  address?: string;
+  phone?: string;
+  
+  // Получатель (соответствует полям в TransactionDTO)
+  personTypeRecipient: PersonType;
+  nameRecipient?: string;
+  innRecipient: string;
+  addressRecipient?: string;
+  recipientPhoneRecipient?: string;
+  
+  // Банк отправителя (соответствует полям в TransactionDTO)
+  nameBank: string;
+  bill?: string;
+  rBill?: string;
+  
+  // Банк получателя (соответствует полям в TransactionDTO)
+  nameBankRecip: string;
+  billRecip: string;
+  rBillRecip: string;
+  
+  // Основные данные транзакции (соответствует полям в TransactionDTO)
+  comment?: string;
+  category: string;
+  transactionType: TransactionType;
+  sum: number;
+  typeOperation: TransactionType;
+  
+  // Дополнительные поля для UI (не отправляются на бэкенд)
+  transactionDate?: string; // Для выбора даты
+  categoryId?: number;      // Для выбора категории в UI
+  
+  // Устаревшие поля - оставлены для обратной совместимости
+  amount?: number;          // Дубликат sum
+  description?: string;     // Дубликат comment
+  type?: TransactionType;   // Дубликат transactionType
+}
+
+const initialFormState: TransactionFormData = {
+  // Значения по умолчанию для обязательных полей
   sum: 0,
   comment: '',
   transactionDate: new Date().toISOString().split('T')[0],
   category: '',
+  categoryId: 0,
+  
+  // Типы транзакций
   transactionType: 'DEBIT',
   typeOperation: 'DEBIT',
-  status: 'COMPLETED',
-  personType: 'INDIVIDUAL',
-  inn: '000000000000', // Дефолтное значение для физлица
-  personTypeRecipient: 'INDIVIDUAL',
-  innRecipient: '000000000000', // Дефолтное значение для физлица
-  nameBank: 'Сбербанк', // Дефолтное значение
-  nameBankRecip: 'Сбербанк', // Дефолтное значение
-  billRecip: '40000000000000000000', // Дефолтное значение
-  rBillRecip: '40000000000000000000', // Дефолтное значение
+  type: 'DEBIT',
   
-  // Для совместимости со старым кодом
+  // Отправитель
+  personType: PERSON_TYPE,
+  name: '',
+  inn: '000000000000', // Дефолтное значение для физлица (12 цифр)
+  address: '',
+  phone: '',
+  
+  // Получатель
+  personTypeRecipient: PERSON_TYPE,
+  nameRecipient: '',
+  innRecipient: '000000000000', // Дефолтное значение для физлица (12 цифр)
+  addressRecipient: '',
+  recipientPhoneRecipient: '',
+  
+  // Банк отправителя
+  nameBank: 'Сбербанк',
+  bill: '40817810000000000001',
+  rBill: '30101810400000000225',
+  
+  // Банк получателя
+  nameBankRecip: 'Сбербанк',
+  billRecip: '40817810000000000002',
+  rBillRecip: '30101810400000000226',
+  
+  // Для совместимости с формой
   amount: 0,
-  description: '',
-  categoryId: 0,
-  type: 'DEBIT'
+  description: ''
 };
 
 interface FormErrors {
+  // Основные поля
   sum?: string;
+  amount?: string;
   comment?: string;
+  description?: string;
   transactionDate?: string;
   category?: string;
+  categoryId?: string;
+  transactionType?: string;
+  typeOperation?: string;
+  type?: string;
+  
+  // Поля отправителя
+  personType?: string;
+  name?: string;
   inn?: string;
+  address?: string;
+  phone?: string;
+  
+  // Поля получателя
+  personTypeRecipient?: string;
+  nameRecipient?: string;
   innRecipient?: string;
+  addressRecipient?: string;
+  recipientPhoneRecipient?: string;
+  
+  // Банк отправителя
   nameBank?: string;
+  bill?: string;
+  rBill?: string;
+  
+  // Банк получателя
   nameBankRecip?: string;
   billRecip?: string;
   rBillRecip?: string;
-  status?: string;
-  transactionType?: string;
-  phone?: string;
-  recipientPhoneRecipient?: string;
-  
-  // Для совместимости со старым кодом
-  amount?: string;
-  description?: string;
-  categoryId?: string;
-  type?: string;
 }
 
 const TransactionFormModal: React.FC = () => {
@@ -116,7 +198,7 @@ const TransactionFormModal: React.FC = () => {
   const { items: categories, loading: categoriesLoading } = useAppSelector(state => state.categories);
   
   const [open, setOpen] = useState(true);
-  const [formData, setFormData] = useState<Transaction>(initialFormState as Transaction);
+  const [formData, setFormData] = useState<TransactionFormData>(initialFormState);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [date, setDate] = useState<Date | null>(new Date());
   const [isSaving, setIsSaving] = useState(false);
@@ -129,7 +211,7 @@ const TransactionFormModal: React.FC = () => {
   
   // Фильтруем категории по типу транзакции
   const filteredCategories = Array.isArray(categories) 
-    ? categories.filter(category => category.type === formData.type)
+    ? categories.filter(category => category.type === formData.transactionType)
     : [];
   
   // Группируем категории для удобного отображения
@@ -155,9 +237,9 @@ const TransactionFormModal: React.FC = () => {
         console.log('Результат загрузки всех категорий:', result);
         
         // Затем загружаем категории для конкретного типа текущей транзакции
-        if (formData.type) {
-          console.log(`Загружаем категории для типа ${formData.type}`);
-          dispatch(fetchCategoriesByType(formData.type));
+        if (formData.transactionType) {
+          console.log(`Загружаем категории для типа ${formData.transactionType}`);
+          dispatch(fetchCategoriesByType(formData.transactionType));
         }
       })
       .catch((err) => {
@@ -175,17 +257,17 @@ const TransactionFormModal: React.FC = () => {
   
   // Загружаем категории если меняется тип транзакции
   useEffect(() => {
-    if (formData.type) {
-      console.log(`Тип транзакции изменен на: ${formData.type}, загружаем соответствующие категории`);
-      dispatch(fetchCategoriesByType(formData.type))
+    if (formData.transactionType) {
+      console.log(`Тип транзакции изменен на: ${formData.transactionType}, загружаем соответствующие категории`);
+      dispatch(fetchCategoriesByType(formData.transactionType))
         .then((result) => {
-          console.log(`Результат загрузки категорий типа ${formData.type}:`, result);
+          console.log(`Результат загрузки категорий типа ${formData.transactionType}:`, result);
         })
         .catch((err) => {
-          console.error(`Ошибка при загрузке категорий типа ${formData.type}:`, err);
+          console.error(`Ошибка при загрузке категорий типа ${formData.transactionType}:`, err);
         });
     }
-  }, [dispatch, formData.type]);
+  }, [dispatch, formData.transactionType]);
   
   // Выводим в консоль состояние категорий для отладки
   useEffect(() => {
@@ -193,8 +275,8 @@ const TransactionFormModal: React.FC = () => {
     console.log('Тип категорий в массиве:', categories?.map(cat => cat.type || cat.applicableType));
     console.log('Категории расходов (CREDIT):', expenseCategories?.length, expenseCategories);
     console.log('Категории доходов (DEBIT):', incomeCategories?.length, incomeCategories);
-    console.log('Тип выбранной транзакции:', formData.type);
-  }, [categories, incomeCategories, expenseCategories, formData.type]);
+    console.log('Тип выбранной транзакции:', formData.transactionType);
+  }, [categories, incomeCategories, expenseCategories, formData.transactionType]);
   
   // Set form data when editing
   useEffect(() => {
@@ -232,17 +314,48 @@ const TransactionFormModal: React.FC = () => {
     const { name, value } = e.target;
     if (name) {
       // Если меняем тип транзакции, сбрасываем categoryId
-      if (name === 'type') {
-        const transactionType = String(value) as 'DEBIT' | 'CREDIT';
+      if (name === 'type' || name === 'transactionType' || name === 'typeOperation') {
+        const transactionType = String(value) as TransactionType;
         console.log(`Смена типа транзакции на: ${transactionType}`);
         setFormData(prev => ({
           ...prev,
           type: transactionType,
           transactionType: transactionType,
           typeOperation: transactionType,
-          categoryId: 0 // Сбрасываем выбранную категорию при смене типа
+          categoryId: 0, // Сбрасываем выбранную категорию при смене типа
+          category: '' // Сбрасываем строковое представление категории
+        }));
+        
+        // Загружаем соответствующие категории для выбранного типа
+        dispatch(fetchCategoriesByType(transactionType));
+      } else if (name === 'sum' || name === 'amount') {
+        // Обработка изменения суммы - синхронизируем оба поля
+        const numericValue = parseFloat(String(value));
+        if (!isNaN(numericValue)) {
+          setFormData(prev => ({
+            ...prev,
+            sum: numericValue,
+            amount: numericValue
+          }));
+        }
+      } else if (name === 'comment' || name === 'description') {
+        // Обработка изменения комментария - синхронизируем оба поля
+        const stringValue = String(value);
+        setFormData(prev => ({
+          ...prev,
+          comment: stringValue,
+          description: stringValue
+        }));
+      } else if (name === 'categoryId') {
+        // Обработка выбора категории - синхронизируем поле category
+        const categoryId = Number(value);
+        setFormData(prev => ({
+          ...prev,
+          categoryId: categoryId,
+          category: categoryId.toString()
         }));
       } else {
+        // Обычная обработка других полей
         setFormData(prev => ({
           ...prev,
           [name]: value
@@ -282,88 +395,111 @@ const TransactionFormModal: React.FC = () => {
     // Проверка суммы
     if (!formData.sum || formData.sum <= 0) {
       errors.sum = 'Сумма должна быть больше 0';
-      errors.amount = 'Сумма должна быть больше 0'; // Для совместимости
       isValid = false;
     }
     
-    // Проверка на максимальную сумму
+    // Проверка на максимальную сумму в соответствии с аннотацией @DecimalMax на бэкенде
     if (formData.sum > 999999.99999) {
       errors.sum = 'Сумма не должна превышать 999,999.99999';
-      errors.amount = 'Сумма не должна превышать 999,999.99999'; // Для совместимости
       isValid = false;
     }
     
-    // Проверка комментария/описания
-    if (!formData.comment?.trim() && !formData.description?.trim()) {
-      errors.comment = 'Описание обязательно';
-      errors.description = 'Описание обязательно'; // Для совместимости
-      isValid = false;
-    }
+    // Проверка комментария - необязательное поле на бэкенде
     
-    // Проверка даты
+    // Проверка даты - бэкенд не требует, но нужно для фронтенда
     if (!formData.transactionDate) {
       errors.transactionDate = 'Дата обязательна';
       isValid = false;
     }
     
-    // Проверка категории
+    // Проверка категории - обязательное поле на бэкенде (@NotNull)
     if (!formData.category && !formData.categoryId) {
       errors.category = 'Категория обязательна';
-      errors.categoryId = 'Категория обязательна'; // Для совместимости
       isValid = false;
     }
     
-    // Проверка ИНН отправителя (если указан)
-    if (formData.inn && !/^\d{10}|\d{12}$/.test(formData.inn)) {
-      errors.inn = 'ИНН должен содержать 10 или 12 цифр';
+    // Проверка типа транзакции - обязательное поле на бэкенде (@NotNull)
+    if (!formData.transactionType) {
+      errors.transactionType = 'Тип транзакции обязателен';
       isValid = false;
     }
     
-    // Проверка ИНН получателя (если указан)
-    if (formData.innRecipient && !/^\d{10}|\d{12}$/.test(formData.innRecipient)) {
-      errors.innRecipient = 'ИНН должен содержать 10 или 12 цифр';
+    // Проверка типа операции - обязательное поле на бэкенде (@NotNull)
+    if (!formData.typeOperation) {
+      errors.typeOperation = 'Тип операции обязателен';
       isValid = false;
     }
     
-    // Проверка телефона отправителя (если указан)
+    // Проверка типа лица отправителя - обязательное поле на бэкенде (@NotNull)
+    if (!formData.personType) {
+      errors.personType = 'Тип лица отправителя обязателен';
+      isValid = false;
+    }
+    
+    // Проверка типа лица получателя - обязательное поле на бэкенде (@NotNull)
+    if (!formData.personTypeRecipient) {
+      errors.personTypeRecipient = 'Тип лица получателя обязателен';
+      isValid = false;
+    }
+    
+    // Проверка ИНН отправителя (@Pattern на бэкенде)
+    // Для LEGAL - 10 цифр, для PERSON_TYPE - 12 цифр
+    if (formData.personType === LEGAL_TYPE && (!formData.inn || !/^\d{10}$/.test(formData.inn))) {
+      errors.inn = 'ИНН юр. лица должен содержать 10 цифр';
+      isValid = false;
+    } else if (formData.personType === PERSON_TYPE && (!formData.inn || !/^\d{12}$/.test(formData.inn))) {
+      errors.inn = 'ИНН физ. лица должен содержать 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка ИНН получателя (@Pattern на бэкенде)
+    if (formData.personTypeRecipient === LEGAL_TYPE && (!formData.innRecipient || !/^\d{10}$/.test(formData.innRecipient))) {
+      errors.innRecipient = 'ИНН юр. лица должен содержать 10 цифр';
+      isValid = false;
+    } else if (formData.personTypeRecipient === PERSON_TYPE && (!formData.innRecipient || !/^\d{12}$/.test(formData.innRecipient))) {
+      errors.innRecipient = 'ИНН физ. лица должен содержать 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка телефона отправителя (необязательное поле с @Pattern на бэкенде)
     if (formData.phone && !/^(\+7|8)\d{10}$/.test(formData.phone)) {
       errors.phone = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
       isValid = false;
     }
     
-    // Проверка телефона получателя (если указан)
+    // Проверка телефона получателя (необязательное поле с @Pattern на бэкенде)
     if (formData.recipientPhoneRecipient && !/^(\+7|8)\d{10}$/.test(formData.recipientPhoneRecipient)) {
       errors.recipientPhoneRecipient = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
       isValid = false;
     }
     
-    // Проверка банка отправителя
+    // Проверка банка отправителя (@NotNull на бэкенде)
     if (!formData.nameBank?.trim()) {
       errors.nameBank = 'Название банка обязательно';
       isValid = false;
     }
     
-    // Проверка банка получателя
+    // Проверка банка получателя (@NotNull на бэкенде)
     if (!formData.nameBankRecip?.trim()) {
-      errors.nameBankRecip = 'Название банка обязательно';
+      errors.nameBankRecip = 'Название банка получателя обязательно';
       isValid = false;
     }
     
-    // Проверка счета получателя
+    // Проверка счета получателя (@NotNull на бэкенде)
     if (!formData.billRecip?.trim()) {
       errors.billRecip = 'Счет получателя обязателен';
       isValid = false;
-    } else if (!/^\d{20}$/.test(formData.billRecip)) {
+    } else if (!/^\d{20}$/.test(formData.billRecip.replace(/\D/g, ''))) {
       errors.billRecip = 'Счет должен содержать 20 цифр';
       isValid = false;
     }
     
-    // Проверка расчетного счета получателя
+    // Проверка расчетного счета получателя (@NotNull на бэкенде)
     if (!formData.rBillRecip?.trim()) {
-      errors.rBillRecip = 'Расчетный счет получателя обязателен';
+      errors.rBillRecip = 'Корреспондентский счет получателя обязателен';
       isValid = false;
-    } else if (!/^\d{20}$/.test(formData.rBillRecip)) {
-      errors.rBillRecip = 'Расчетный счет должен содержать 20 цифр';
+    } else if (!/^\d{20}$/.test(formData.rBillRecip.replace(/\D/g, ''))) {
+      errors.rBillRecip = 'Корреспондентский счет должен содержать 20 цифр';
       isValid = false;
     }
     
@@ -379,58 +515,95 @@ const TransactionFormModal: React.FC = () => {
       return;
     }
     
+    // Проверяем наличие токена авторизации
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('Ошибка: отсутствует токен авторизации!');
+      alert('Ошибка: вы не авторизованы в системе. Пожалуйста, войдите снова.');
+      // Перенаправление на страницу логина
+      navigate('/login');
+      return;
+    }
+    
     setIsSaving(true);
     
     try {
-      // Подготавливаем данные для отправки с обязательными полями DTO
-      const dataToSubmit: Partial<Transaction> = {
-        ...initialFormState, // Добавляем все дефолтные значения как основу
-        ...formData,
-        // Преобразуем сумму
-        sum: typeof formData.sum === 'string' ? parseFloat(formData.sum) : (formData.sum || 0),
-        amount: typeof formData.sum === 'string' ? parseFloat(formData.sum) : (formData.sum || 0),
-        // Синхронизируем старые и новые поля
-        comment: formData.comment || formData.description || '',
-        description: formData.description || formData.comment || '',
-        category: formData.category || (formData.categoryId ? formData.categoryId.toString() : '0'),
-        categoryId: formData.categoryId || (formData.category ? parseInt(formData.category) : 0),
-        transactionType: formData.transactionType || formData.type || 'DEBIT',
-        typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
-        type: formData.type || formData.transactionType || 'DEBIT',
-        status: 'COMPLETED', // Устанавливаем статус по умолчанию
-        // Гарантируем наличие обязательных полей DTO
-        personType: formData.personType || 'INDIVIDUAL',
-        inn: formData.inn || '000000000000',
-        personTypeRecipient: formData.personTypeRecipient || 'INDIVIDUAL', 
-        innRecipient: formData.innRecipient || '000000000000',
-        nameBank: formData.nameBank || 'Сбербанк',
-        nameBankRecip: formData.nameBankRecip || 'Сбербанк',
-        billRecip: formData.billRecip || '40000000000000000000',
-        rBillRecip: formData.rBillRecip || '40000000000000000000',
-        // Устанавливаем правильную дату
-        transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        phone: formData.phone || '',
-        recipientPhoneRecipient: formData.recipientPhoneRecipient || ''
+      // Преобразуем числовые значения
+      const numericSum = typeof formData.sum === 'string' 
+        ? parseFloat(formData.sum) 
+        : (formData.sum || 0);
+        
+      if (isNaN(numericSum) || numericSum <= 0) {
+        throw new Error('Сумма транзакции должна быть положительным числом');
+      }
+      
+      // Убеждаемся, что category - это строка (ID категории)
+      const categoryString = formData.category || 
+                          (formData.categoryId ? formData.categoryId.toString() : '');
+      
+      if (!categoryString) {
+        throw new Error('Необходимо выбрать категорию');
+      }
+      
+      // Подготавливаем ИНН с учетом типа лица
+      const senderInn = formData.inn?.trim() || 
+                      (formData.personType === PERSON_TYPE ? '000000000000' : '0000000000');
+      const recipientInn = formData.innRecipient?.trim() || 
+                          (formData.personTypeRecipient === PERSON_TYPE ? '000000000000' : '0000000000');
+      
+      // Структура данных в точном соответствии с TransactionDTO на бэкенде
+      const dataToSubmit = {
+        
+        // Отправитель
+        personType: formData.personType,
+        name: (formData.name || '').trim(),
+        inn: senderInn,
+        address: (formData.address || '').trim(),
+        phone: (formData.phone || '').trim(),
+        
+        // Получатель
+        personTypeRecipient: formData.personTypeRecipient,
+        nameRecipient: (formData.nameRecipient || '').trim(),
+        innRecipient: recipientInn,
+        addressRecipient: (formData.addressRecipient || '').trim(),
+        recipientPhoneRecipient: (formData.recipientPhoneRecipient || '').trim(),
+        
+        // Банк отправителя
+        nameBank: (formData.nameBank || '').trim(),
+        bill: (formData.bill || '').trim(),
+        rBill: (formData.rBill || '').trim(),
+        
+        // Банк получателя
+        nameBankRecip: (formData.nameBankRecip || '').trim(),
+        billRecip: (formData.billRecip || '').trim().replace(/\D/g, ''),
+        rBillRecip: (formData.rBillRecip || '').trim().replace(/\D/g, ''),
+        
+        // Данные транзакции
+        comment: (formData.comment || '').trim(),
+        category: categoryString,
+        transactionType: formData.transactionType,
+        sum: numericSum,
+        typeOperation: formData.typeOperation
       };
       
-      // Убедимся что все строковые поля не содержат контрольных символов или непарсящихся значений
+      // Очищаем строки от спецсимволов
       Object.keys(dataToSubmit).forEach(key => {
         const value = (dataToSubmit as any)[key];
         if (typeof value === 'string') {
-          // Проверяем, что строка валидна для JSON
-          try {
-            JSON.parse(`{"${key}":"${value}"}`);
-          } catch (e) {
-            console.error(`JSON парсинг ошибка в поле ${key}:`, value, e);
-            // Экранируем специальные символы
-            (dataToSubmit as any)[key] = value.replace(/[\u0000-\u001F\u007F-\u009F\\"\n\r\t]/g, '');
-          }
+          (dataToSubmit as any)[key] = value.replace(/[\u0000-\u001F\u007F-\u009F\\"\n\r\t]/g, '');
         }
       });
       
       // Логируем данные перед отправкой
-      console.log('Отправляем данные: ', dataToSubmit);
-      console.log('JSON строка: ', JSON.stringify(dataToSubmit));
+      console.log('Данные для отправки:', dataToSubmit);
+      
+      try {
+        // Проверяем корректность JSON
+        JSON.parse(JSON.stringify(dataToSubmit));
+      } catch (jsonError) {
+        console.error('Ошибка валидации JSON:', jsonError);
+        throw new Error('Ошибка формата данных: ' + String(jsonError));
+      }
       
       if (isEditing && id) {
         await dispatch(updateTransaction({ id: Number(id), data: dataToSubmit as Transaction })).unwrap();
@@ -441,7 +614,7 @@ const TransactionFormModal: React.FC = () => {
       // Обновляем список транзакций
       dispatch(fetchAllTransactions());
       
-      // Сразу перенаправляем на страницу транзакций
+      // Перенаправляем на страницу транзакций
       handleClose();
     } catch (err) {
       console.error('Ошибка сохранения транзакции:', err);
@@ -691,14 +864,29 @@ const TransactionFormModal: React.FC = () => {
                     name="categoryId"
                     value={formData.categoryId || ''}
                     onChange={(e: SelectChangeEvent<unknown>) => {
-                      // Используем новый обработчик, но с дополнительной логикой
-                      handleSelectChange(e);
+                      // Получаем ID категории как число
+                      const categoryId = Number(e.target.value);
                       
-                      // Обновляем также поле category для новой структуры
-                      if (e.target.value) {
+                      // Если выбрана категория (не пустое значение)
+                      if (categoryId) {
+                        console.log(`Выбрана категория с ID: ${categoryId}`);
+                        
+                        // Обновляем оба поля: categoryId для формы и category для API
                         setFormData(prev => ({
                           ...prev,
-                          category: String(e.target.value)
+                          categoryId: categoryId,
+                          category: categoryId.toString()
+                        }));
+                        
+                        // Выводим в консоль для отладки
+                        const selectedCategory = categories.find(cat => cat.id === categoryId);
+                        console.log('Выбранная категория:', selectedCategory?.name || 'Неизвестно');
+                      } else {
+                        // Сброс категории
+                        setFormData(prev => ({
+                          ...prev,
+                          categoryId: 0,
+                          category: ''
                         }));
                       }
                     }}
@@ -802,14 +990,14 @@ const TransactionFormModal: React.FC = () => {
                             labelId="person-type-label"
                             id="person-type"
                             name="personType"
-                            value={formData.personType || 'INDIVIDUAL'}
+                            value={formData.personType || PERSON_TYPE}
                             onChange={handleSelectChange}
                             label="Тип лица"
                             size="medium"
                             disabled={isSaving}
                           >
-                            <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
-                            <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                            <MenuItem value={PERSON_TYPE}>Физическое лицо</MenuItem>
+                            <MenuItem value={LEGAL_TYPE}>Юридическое лицо</MenuItem>
                           </Select>
                         </FormControl>
 
@@ -910,14 +1098,14 @@ const TransactionFormModal: React.FC = () => {
                             labelId="recipient-type-label"
                             id="recipient-type"
                             name="personTypeRecipient"
-                            value={formData.personTypeRecipient || 'INDIVIDUAL'}
+                            value={formData.personTypeRecipient || PERSON_TYPE}
                             onChange={handleSelectChange}
                             label="Тип лица получателя"
                             size="medium"
                             disabled={isSaving}
                           >
-                            <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
-                            <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                            <MenuItem value={PERSON_TYPE}>Физическое лицо</MenuItem>
+                            <MenuItem value={LEGAL_TYPE}>Юридическое лицо</MenuItem>
                           </Select>
                         </FormControl>
 

@@ -1,13 +1,10 @@
 import api from './api';
 
-export type PersonType = 'INDIVIDUAL' | 'LEGAL';
+export type PersonType = 'PERSON_TYPE' | 'LEGAL';
 export type TransactionType = 'DEBIT' | 'CREDIT';
-export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export interface Transaction {
   id?: number;
-  status: TransactionStatus;
-  
   // Отправитель
   personType: PersonType;
   name?: string;
@@ -32,16 +29,17 @@ export interface Transaction {
   billRecip: string;
   rBillRecip: string;
   
+  // Основные данные транзакции
   comment?: string;
   category: string;
   transactionType: TransactionType;
   sum: number;
   typeOperation: TransactionType;
+  transactionDate?: string;
   
-  // Дополнительные поля для совместимости
+  // Дополнительные поля для совместимости с формой и другими компонентами
   amount?: number;
   description?: string;
-  transactionDate?: string;
   categoryId?: number;
   type?: TransactionType;
 }
@@ -65,16 +63,6 @@ class TransactionService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
-      throw error;
-    }
-  }
-
-  async getTransactionsByStatus(status: Transaction['status']): Promise<Transaction[]> {
-    try {
-      const response = await api.get(`${TRANSACTION_ENDPOINTS.BY_STATUS}?status=${status}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Failed to fetch ${status} transactions:`, error);
       throw error;
     }
   }
@@ -182,33 +170,45 @@ class TransactionService {
     categoryId: number, 
     type: TransactionType = 'DEBIT'
   ): Promise<Transaction> {
-    const transaction: Partial<Transaction> = {
+    const transactionDate = new Date().toISOString().split('T')[0];
+    
+    // Создаем транзакцию с минимально необходимыми полями
+    const transaction: Transaction = {
+      // Основные данные
       sum: amount,
       comment: description,
-      category: categoryId.toString(), // Преобразование ID в строку
+      category: categoryId.toString(),
       transactionType: type,
       typeOperation: type,
-      status: 'COMPLETED',
+      transactionDate: transactionDate,
       
-      // Минимальные обязательные поля согласно DTO
-      personType: 'INDIVIDUAL',
-      inn: '000000000000', // Заполнитель, должен быть заменен на реальный ИНН
-      personTypeRecipient: 'INDIVIDUAL',
-      innRecipient: '000000000000', // Заполнитель
-      nameBank: 'Банк отправителя', // Заполнитель
-      nameBankRecip: 'Банк получателя', // Заполнитель
-      billRecip: '00000000000000000000', // Заполнитель
-      rBillRecip: '00000000000000000000', // Заполнитель
+      // Обязательные поля отправителя
+      personType: 'PERSON_TYPE',
+      inn: '000000000000',
       
-      // Поля для совместимости
+      // Обязательные поля получателя
+      personTypeRecipient: 'PERSON_TYPE',
+      innRecipient: '000000000000',
+      
+      // Обязательные поля банка отправителя
+      nameBank: 'Сбербанк',
+      bill: '40817810000000000001',
+      rBill: '30101810400000000225',
+      
+      // Обязательные поля банка получателя
+      nameBankRecip: 'Сбербанк',
+      billRecip: '40817810000000000002',
+      rBillRecip: '30101810400000000226',
+      
+      // Дополнительные поля для совместимости
       amount,
       description,
       categoryId,
-      type,
-      transactionDate: new Date().toISOString().split('T')[0]
+      type
     };
     
-    return this.createTransaction(transaction as Transaction);
+    // Отправляем на сервер подготовленные данные
+    return this.createTransaction(transaction);
   }
 
   async updateTransaction(id: number, transaction: Transaction): Promise<Transaction> {
