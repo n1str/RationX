@@ -9,9 +9,9 @@ export interface Category {
 }
 
 const CATEGORY_ENDPOINTS = {
-  BASE: '/categories',
-  BY_TYPE: '/categories/by-type',
-  CREATE: '/categories/create',
+  BASE: '/api/categories',
+  BY_TYPE: '/api/categories/by-type',
+  CREATE: '/api/categories/create',
 };
 
 class CategoryService {

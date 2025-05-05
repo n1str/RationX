@@ -61,8 +61,8 @@ const Dashboard: React.FC = () => {
   const dispatch = useAppDispatch();
   
   const { general, lastMonth, loading: statsLoading } = useAppSelector(state => state.statistics);
-  const { items: transactions, loading: transactionsLoading } = useAppSelector(state => state.transactions);
-  const { items: categories } = useAppSelector(state => state.categories);
+  const { items: transactions = [], loading: transactionsLoading } = useAppSelector(state => state.transactions);
+  const { items: categories = [] } = useAppSelector(state => state.categories);
   
   useEffect(() => {
     dispatch(fetchGeneralStatistics());
@@ -74,21 +74,27 @@ const Dashboard: React.FC = () => {
   const loading = statsLoading || transactionsLoading;
   
   // Get 5 recent transactions
-  const recentTransactions = [...transactions]
-    .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
-    .slice(0, 5);
+  const recentTransactions = transactions && Array.isArray(transactions)
+    ? [...transactions]
+        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+        .slice(0, 5)
+    : [];
   
   // Create data for bar chart
-  const chartData = transactions
-    .filter(transaction => transaction.type === 'DEBIT')
-    .slice(0, 7)
-    .map(transaction => {
-      const category = categories.find(cat => cat.id === transaction.categoryId);
-      return {
-        name: category?.name || 'Unknown',
-        amount: transaction.amount,
-      };
-    });
+  const chartData = transactions && Array.isArray(transactions)
+    ? transactions
+        .filter(transaction => transaction.type === 'DEBIT')
+        .slice(0, 7)
+        .map(transaction => {
+          const category = categories && Array.isArray(categories) 
+            ? categories.find(cat => cat.id === transaction.categoryId)
+            : null;
+          return {
+            name: category?.name || 'Unknown',
+            amount: transaction.amount,
+          };
+        })
+    : [];
   
   const summaryCards = [
     {
@@ -121,16 +127,20 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const expenseCategories = transactions
-    .filter(transaction => transaction.type === 'DEBIT')
-    .map(transaction => {
-      const category = categories.find(cat => cat.id === transaction.categoryId);
-      return {
-        name: category?.name || 'Unknown',
-        amount: transaction.amount,
-        categoryName: category?.name || 'Unknown',
-      };
-    });
+  const expenseCategories = transactions && Array.isArray(transactions)
+    ? transactions
+        .filter(transaction => transaction.type === 'DEBIT')
+        .map(transaction => {
+          const category = categories && Array.isArray(categories)
+            ? categories.find(cat => cat.id === transaction.categoryId)
+            : null;
+          return {
+            name: category?.name || 'Unknown',
+            amount: transaction.amount,
+            categoryName: category?.name || 'Unknown',
+          };
+        })
+    : [];
 
   // Animation variants
   const containerVariants = {
@@ -351,7 +361,9 @@ const Dashboard: React.FC = () => {
                   {recentTransactions && recentTransactions.length > 0 ? (
                     <List sx={{ p: 0 }}>
                       {recentTransactions.map((transaction, index) => {
-                        const category = categories.find(c => c.id === transaction.categoryId);
+                        const category = categories && Array.isArray(categories) 
+                          ? categories.find(c => c.id === transaction.categoryId)
+                          : null;
                         return (
                           <motion.div
                             key={transaction.id}

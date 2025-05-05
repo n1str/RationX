@@ -1,13 +1,16 @@
 import axios from 'axios';
 
-// Удаляем префикс '/api' так как он добавляется в URL эндпоинтов auth
-const API_URL = '';
+// Настраиваем базовый URL для API запросов
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? '' // В продакшне URL будет пустым, так как относительные пути будут работать
+  : 'http://localhost:8080'; // В режиме разработки указываем явный адрес бэкенда
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Разрешаем отправку cookies в кросс-доменных запросах
 });
 
 // Request interceptor to add auth token to requests

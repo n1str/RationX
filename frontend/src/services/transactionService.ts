@@ -16,15 +16,15 @@ export interface Transaction {
 }
 
 const TRANSACTION_ENDPOINTS = {
-  BASE: '/transactions',
-  BY_STATUS: '/transactions/status',
-  BY_RECIPIENT_INN: '/transactions/recipient-inn',
-  BY_TYPE: '/transactions/type',
-  BY_CATEGORY: '/transactions/category',
-  BY_SENDER_BANK: '/transactions/sender-bank',
-  BY_RECIPIENT_BANK: '/transactions/recipient-bank',
-  BY_DATE_RANGE: '/transactions/date-range',
-  BY_AMOUNT_RANGE: '/transactions/amount-range',
+  BASE: '/api/transactions',
+  BY_STATUS: '/api/transactions/status',
+  BY_RECIPIENT_INN: '/api/transactions/recipient-inn',
+  BY_TYPE: '/api/transactions/type',
+  BY_CATEGORY: '/api/transactions/category',
+  BY_SENDER_BANK: '/api/transactions/sender-bank',
+  BY_RECIPIENT_BANK: '/api/transactions/recipient-bank',
+  BY_DATE_RANGE: '/api/transactions/date-range',
+  BY_AMOUNT_RANGE: '/api/transactions/amount-range',
 };
 
 class TransactionService {

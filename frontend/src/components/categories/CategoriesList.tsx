@@ -75,7 +75,7 @@ const CategoriesList: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   
-  const { items: categories, loading, error } = useAppSelector(state => state.categories);
+  const { items: categories = [], loading, error } = useAppSelector(state => state.categories);
   
   const [tabValue, setTabValue] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,17 +131,21 @@ const CategoriesList: React.FC = () => {
     setSnackbarOpen(false);
   };
   
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCategories = Array.isArray(categories)
+    ? categories.filter(category =>
+        (category?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (category?.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];
   
   // Categories for current tab
-  const displayedCategories = tabValue === 0
-    ? filteredCategories
-    : tabValue === 1
-      ? filteredCategories.filter(cat => cat.type === 'DEBIT')
-      : filteredCategories.filter(cat => cat.type === 'CREDIT');
+  const displayedCategories = Array.isArray(filteredCategories)
+    ? (tabValue === 0
+        ? filteredCategories
+        : tabValue === 1
+          ? filteredCategories.filter(cat => cat?.type === 'DEBIT')
+          : filteredCategories.filter(cat => cat?.type === 'CREDIT'))
+    : [];
   
   const containerVariants = {
     hidden: { opacity: 0 },

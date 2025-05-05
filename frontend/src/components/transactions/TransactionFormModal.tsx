@@ -79,6 +79,11 @@ const TransactionFormModal: React.FC = () => {
   const { selectedTransaction, loading, error } = useAppSelector(state => state.transactions);
   const { items: categories, loading: categoriesLoading } = useAppSelector(state => state.categories);
   
+  // Фильтруем категории в зависимости от типа транзакции
+  const filteredCategories = Array.isArray(categories) ? categories.filter(
+    category => category.type === formData.type
+  ) : [];
+
   const [open, setOpen] = useState(true);
   const [formData, setFormData] = useState<Transaction>(initialFormState);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -192,11 +197,6 @@ const TransactionFormModal: React.FC = () => {
       console.error('Ошибка сохранения транзакции:', err);
     }
   };
-  
-  // Filter categories by type
-  const filteredCategories = categories.filter(
-    category => !formData.type || category.type === formData.type
-  );
   
   const transitionVariants = {
     initial: { y: 50, opacity: 0 },
@@ -433,15 +433,20 @@ const TransactionFormModal: React.FC = () => {
                       if (!selected) {
                         return <Typography color="text.secondary">Выберите категорию</Typography>;
                       }
-                      const category = categories.find((cat) => cat.id === selected);
+                      const category = Array.isArray(categories) ? categories.find((cat) => cat.id === selected) : null;
                       return category ? category.name : 'Без категории';
                     }}
                   >
                     <MenuItem value="">
                       <em>Без категории</em>
                     </MenuItem>
-                    {filteredCategories
-                      .map((category) => (
+                    {Array.isArray(filteredCategories) && filteredCategories.length > 0 
+                      ? filteredCategories.map((category) => (
+                        <MenuItem key={category.id} value={category.id}>
+                          {category.name}
+                        </MenuItem>
+                      ))
+                      : Array.isArray(categories) && categories.map((category) => (
                         <MenuItem key={category.id} value={category.id}>
                           {category.name}
                         </MenuItem>

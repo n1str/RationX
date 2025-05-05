@@ -28,12 +28,12 @@ export interface PeriodStatistics {
 }
 
 const STATISTICS_ENDPOINTS = {
-  GENERAL: '/statistics',
-  BY_CATEGORY: '/statistics/by-category',
-  BY_PERIOD: '/statistics/by-period',
-  BY_TYPE: '/statistics/by-type',
-  LAST_MONTH: '/statistics/last-month',
-  LAST_YEAR: '/statistics/last-year',
+  GENERAL: '/api/statistics',
+  BY_CATEGORY: '/api/statistics/by-category',
+  BY_PERIOD: '/api/statistics/by-period',
+  BY_TYPE: '/api/statistics/by-type',
+  LAST_MONTH: '/api/statistics/last-month',
+  LAST_YEAR: '/api/statistics/last-year',
 };
 
 class StatisticsService {

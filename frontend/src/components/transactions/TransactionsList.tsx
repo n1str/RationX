@@ -84,8 +84,8 @@ const TransactionsList: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   
-  const { items: transactions, loading, filters } = useAppSelector(state => state.transactions);
-  const { items: categories } = useAppSelector(state => state.categories);
+  const { items: transactions = [], loading, filters } = useAppSelector(state => state.transactions);
+  const { items: categories = [] } = useAppSelector(state => state.categories);
   
   // Local state for UI
   const [page, setPage] = useState(0);
@@ -127,15 +127,18 @@ const TransactionsList: React.FC = () => {
   };
   
   // Filter transactions based on search term
-  const filteredTransactions = transactions.filter(transaction => {
-    const searchTermLower = searchTerm.toLowerCase();
-    return (
-      transaction.description.toLowerCase().includes(searchTermLower) ||
-      transaction.recipientName?.toLowerCase().includes(searchTermLower) ||
-      transaction.recipientBank?.toLowerCase().includes(searchTermLower) ||
-      transaction.amount.toString().includes(searchTermLower)
-    );
-  });
+  const filteredTransactions = Array.isArray(transactions)
+    ? transactions.filter(transaction => {
+        if (!transaction) return false;
+        const searchTermLower = searchTerm.toLowerCase();
+        return (
+          (transaction.description || '').toLowerCase().includes(searchTermLower) ||
+          (transaction.recipientName || '').toLowerCase().includes(searchTermLower) ||
+          (transaction.recipientBank || '').toLowerCase().includes(searchTermLower) ||
+          (transaction.amount?.toString() || '').includes(searchTermLower)
+        );
+      })
+    : [];
   
   // Apply pagination
   const paginatedTransactions = filteredTransactions
@@ -162,6 +165,11 @@ const TransactionsList: React.FC = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Транзакции
+          {Array.isArray(filteredTransactions) && (
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+              ({filteredTransactions.length})
+            </Typography>
+          )}
         </Typography>
         <Button
           variant="contained"
@@ -237,25 +245,7 @@ const TransactionsList: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 5 }}>
               <CircularProgress />
             </Box>
-          ) : filteredTransactions.length === 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4 }}>
-              <ReceiptLong sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Транзакции не найдены
-              </Typography>
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
-                Не найдено транзакций, соответствующих текущим критериям фильтрации.
-              </Typography>
-              <Button 
-                variant="outlined" 
-                startIcon={<FilterAlt />} 
-                onClick={() => dispatch(clearFilters())}
-                sx={{ mt: 1 }}
-              >
-                Сбросить фильтры
-              </Button>
-            </Box>
-          ) : (
+          ) : Array.isArray(filteredTransactions) && filteredTransactions.length > 0 ? (
             <>
               <TableContainer>
                 <Table>
@@ -272,7 +262,10 @@ const TransactionsList: React.FC = () => {
                   </TableHead>
                   <TableBody>
                     {paginatedTransactions.map((transaction) => {
-                      const category = categories.find(cat => cat.id === transaction.categoryId);
+                      const category = Array.isArray(categories)
+                        ? categories.find(cat => cat?.id === transaction?.categoryId)
+                        : null;
+                      
                       return (
                         <TableRow
                           key={transaction.id}
@@ -373,6 +366,24 @@ const TransactionsList: React.FC = () => {
                 onRowsPerPageChange={handleChangeRowsPerPage}
               />
             </>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4 }}>
+              <ReceiptLong sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                Транзакции не найдены
+              </Typography>
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
+                Не найдено транзакций, соответствующих текущим критериям фильтрации.
+              </Typography>
+              <Button 
+                variant="outlined" 
+                startIcon={<FilterAlt />} 
+                onClick={() => dispatch(clearFilters())}
+                sx={{ mt: 1 }}
+              >
+                Сбросить фильтры
+              </Button>
+            </Box>
           )}
         </Paper>
       </motion.div>

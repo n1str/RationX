@@ -42,51 +42,54 @@ public class AuthApiController {
     private final UserRepository userRepository;
     private final RoleService roleService;
 
-@PostMapping("/login")
-public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
-    log.info("Login attempt for user: {}", request.username());
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+        log.info("Login attempt for user: {}", request.username());
 
-    try {
-        // Аутентификация пользователя
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password())
-        );
+        try {
+            // Аутентификация пользователя
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
+            );
 
-        log.info("User authenticated successfully: {}", request.username());
-        UserDetails user = (UserDetails) authentication.getPrincipal();
+            log.info("User authenticated successfully: {}", request.username());
+            UserDetails user = (UserDetails) authentication.getPrincipal();
 
-        // Генерация токена
-        String token = jwtService.generateToken(user);
-        log.info("Generated JWT token for user: {}", request.username());
+            // Генерация токена
+            String token = jwtService.generateToken(user);
+            log.info("Generated JWT token for user: {}", request.username());
 
-        // Создаем cookie для хранения токена
-        Cookie jwtCookie = new Cookie("token", token);
-        jwtCookie.setHttpOnly(true);               // Ограничение доступа к cookie с JavaScript для повышения безопасности
-        jwtCookie.setSecure(true);                      // Если ваше приложение работает по HTTPS
-        jwtCookie.setPath("/");                         // Доступ на все пути API
-        jwtCookie.setMaxAge(60 * 60);                       // Например, 1 час (в секундах)
+            // Создаем cookie для хранения токена
+            Cookie jwtCookie = new Cookie("token", token);
+            jwtCookie.setHttpOnly(true);               // Ограничение доступа к cookie с JavaScript для повышения безопасности
+            jwtCookie.setSecure(true);                      // Если ваше приложение работает по HTTPS
+            jwtCookie.setPath("/");                         // Доступ на все пути API
+            jwtCookie.setMaxAge(60 * 60);                       // Например, 1 час (в секундах)
 
-        // Добавляем cookie в ответ
-        response.addCookie(jwtCookie);
+            // Добавляем cookie в ответ
+            response.addCookie(jwtCookie);
 
-        // Можно также вернуть JSON-ответ (например, с сообщением об успешной аутентификации)
-        return ResponseEntity.ok(Map.of("message", "Успешный вход в систему"));
-    } catch (BadCredentialsException e) {
-        log.warn("Authentication failed for user {}: bad credentials", request.username());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", "Неверные учетные данные"));
-    } catch (Exception e) {
-        log.error("Error during authentication for user {}: {}", request.username(), e.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Ошибка при аутентификации: " + e.getMessage()));
+            // Возвращаем JSON-ответ, включая токен в тело ответа
+            return ResponseEntity.ok(Map.of(
+                "message", "Успешный вход в систему",
+                "token", token,
+                "username", request.username()
+            ));
+        } catch (BadCredentialsException e) {
+            log.warn("Authentication failed for user {}: bad credentials", request.username());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Неверные учетные данные"));
+        } catch (Exception e) {
+            log.error("Error during authentication for user {}: {}", request.username(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Ошибка при аутентификации: " + e.getMessage()));
+        }
     }
-}
 
-    
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         log.info("Registration attempt for user: {}", request.username());
-        
+
         // Проверяем, что пользователь с таким именем еще не существует
         if (userRepository.findByUsername(request.username()).isPresent()) {
             log.warn("Registration failed: username '{}' already exists", request.username());
@@ -94,22 +97,22 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRes
         }
 
 //        try {
-            // Получаем роль USER (или создаем, если её нет)
-            RoleUser userRole = roleService.findRole("USER");
-            log.debug("Found USER role for new user");
-            
-            // Создаем нового пользователя
-            User newUser = User.builder()
-                    .username(request.username())
-                    .password(passwordEncoder.encode(request.password()))
-                    .roleUsers(Set.of(userRole))
-                    .enabled(true)
-                    .build();
-            
-            // Сохраняем пользователя
-            userRepository.save(newUser);
-            log.info("Пользователь был : {}", request.username());
-            
+        // Получаем роль USER (или создаем, если её нет)
+        RoleUser userRole = roleService.findRole("USER");
+        log.debug("Found USER role for new user");
+
+        // Создаем нового пользователя
+        User newUser = User.builder()
+                .username(request.username())
+                .password(passwordEncoder.encode(request.password()))
+                .roleUsers(Set.of(userRole))
+                .enabled(true)
+                .build();
+
+        // Сохраняем пользователя
+        userRepository.save(newUser);
+        log.info("Пользователь был : {}", request.username());
+
 //            // Возвращаем JWT токен // под вопросом (matthewencore)
 //            UserDetails userDetails = userService.loadUserByUsername(request.username());
 //            String token = jwtService.generateToken(userDetails);
@@ -117,27 +120,27 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRes
 //
 //            // под вопросом (matthewencore)
 //
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ResponseDTO.builder()
-                            .code(HttpStatus.CREATED.toString())
-                            .message("Пользователь был создан")
-                            .build());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ResponseDTO.builder()
+                        .code(HttpStatus.CREATED.toString())
+                        .message("Пользователь был создан")
+                        .build());
 //        } catch (Exception e) {
 //            log.error("Error during registration for user {}: {}", request.username(), e.getMessage());
 //            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 //                    .body(Map.of("error", "Ошибка при регистрации: " + e.getMessage()));
 //        }
     }
-    
+
     @PostMapping("/validate")
     public ResponseEntity<?> validateToken(@RequestBody String token) {
         log.info("Token validation request received");
-        
+
         try {
             String username = jwtService.extractUsername(token);
             UserDetails userDetails = userService.loadUserByUsername(username);
             boolean isValid = jwtService.isTokenValid(token, userDetails);
-            
+
             log.info("Token validation result for user {}: {}", username, isValid);
             return ResponseEntity.ok(Map.of("valid", isValid));
         } catch (UsernameNotFoundException e) {

@@ -178,6 +178,24 @@ const StatisticsDashboard: React.FC = () => {
   
   // Expenses Pie Chart Component
   const renderExpensesPieChart = () => {
+    if (loading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+    
+    if (!byCategory || !Array.isArray(byCategory) || byCategory.length === 0) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" color="text.secondary">
+            Нет данных для отображения
+          </Typography>
+        </Box>
+      );
+    }
+    
     // Sort data by amount in descending order
     const data = byCategory.filter(cat => cat.categoryType === 'DEBIT');
     const sortedData = [...data].sort((a, b) => b.amount - a.amount);
@@ -215,24 +233,6 @@ const StatisticsDashboard: React.FC = () => {
     }));
     
     const COLORS = ['#FF5252', '#FF4081', '#7C4DFF', '#536DFE', '#448AFF', '#64B5F6'];
-    
-    if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-    
-    if (data.length === 0) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <Typography variant="body1" color="text.secondary">
-            Нет данных о расходах
-          </Typography>
-        </Box>
-      );
-    }
     
     // Custom tooltip formatter
     const CustomTooltip = ({ active, payload }: any) => {
@@ -310,6 +310,24 @@ const StatisticsDashboard: React.FC = () => {
   
   // Income vs Expense Chart Component
   const renderIncomeExpenseChart = () => {
+    if (loading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+    
+    if (!lastYear || !Array.isArray(lastYear) || lastYear.length === 0) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" color="text.secondary">
+            Нет данных для отображения
+          </Typography>
+        </Box>
+      );
+    }
+    
     // Transform data for visualization if needed
     const chartData = lastYear.map(item => ({
       period: item.period ? new Date(item.period).toLocaleDateString('ru-RU', { month: 'short' }) : '',
@@ -396,24 +414,6 @@ const StatisticsDashboard: React.FC = () => {
       return null;
     };
     
-    if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-    
-    if (lastYear.length === 0) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <Typography variant="body1" color="text.secondary">
-            Нет данных о доходах и расходах
-          </Typography>
-        </Box>
-      );
-    }
-    
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
@@ -463,6 +463,24 @@ const StatisticsDashboard: React.FC = () => {
   
   // Transactions Trend Chart Component
   const renderTransactionsTrendChart = () => {
+    if (loading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+    
+    if (!byPeriod || !Array.isArray(byPeriod) || byPeriod.length === 0) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" color="text.secondary">
+            Нет данных для отображения
+          </Typography>
+        </Box>
+      );
+    }
+    
     // Transform data for visualization
     const chartData = byPeriod.map(item => ({
       period: item.period ? new Date(item.period).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '',
@@ -516,24 +534,6 @@ const StatisticsDashboard: React.FC = () => {
       }
       return null;
     };
-    
-    if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-    
-    if (byPeriod.length === 0) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-          <Typography variant="body1" color="text.secondary">
-            Нет данных о транзакциях
-          </Typography>
-        </Box>
-      );
-    }
     
     return (
       <ResponsiveContainer width="100%" height="100%">
