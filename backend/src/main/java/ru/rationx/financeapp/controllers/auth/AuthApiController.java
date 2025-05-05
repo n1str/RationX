@@ -12,6 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import ru.rationx.financeapp.models.dto.LoginRequest;
 import ru.rationx.financeapp.models.dto.LoginResponse;
 import ru.rationx.financeapp.models.dto.RegisterRequest;
@@ -39,30 +42,46 @@ public class AuthApiController {
     private final UserRepository userRepository;
     private final RoleService roleService;
 
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        log.info("Login attempt for user: {}", request.username());
-        
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
-            );
-            
-            log.info("User authenticated successfully: {}", request.username());
-            UserDetails user = (UserDetails) authentication.getPrincipal();
-            String token = jwtService.generateToken(user);
-            
-            log.info("Generated JWT token for user: {}", request.username());
-            return ResponseEntity.ok(new LoginResponse(token));
-        } catch (BadCredentialsException e) {
-            log.warn("Authentication failed for user {}: bad credentials", request.username());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Неверные учетные данные"));
-        } catch (Exception e) {
-            log.error("Error during authentication for user {}: {}", request.username(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Ошибка при аутентификации: " + e.getMessage()));
-        }
+@PostMapping("/login")
+public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+    log.info("Login attempt for user: {}", request.username());
+
+    try {
+        // Аутентификация пользователя
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+        );
+
+        log.info("User authenticated successfully: {}", request.username());
+        UserDetails user = (UserDetails) authentication.getPrincipal();
+
+        // Генерация токена
+        String token = jwtService.generateToken(user);
+        log.info("Generated JWT token for user: {}", request.username());
+
+        // Создаем cookie для хранения токена
+        Cookie jwtCookie = new Cookie("token", token);
+        jwtCookie.setHttpOnly(true);               // Ограничение доступа к cookie с JavaScript для повышения безопасности
+        jwtCookie.setSecure(true);                      // Если ваше приложение работает по HTTPS
+        jwtCookie.setPath("/");                         // Доступ на все пути API
+        jwtCookie.setMaxAge(60 * 60);                       // Например, 1 час (в секундах)
+
+        // Добавляем cookie в ответ
+        response.addCookie(jwtCookie);
+
+        // Можно также вернуть JSON-ответ (например, с сообщением об успешной аутентификации)
+        return ResponseEntity.ok(Map.of("message", "Успешный вход в систему"));
+    } catch (BadCredentialsException e) {
+        log.warn("Authentication failed for user {}: bad credentials", request.username());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Неверные учетные данные"));
+    } catch (Exception e) {
+        log.error("Error during authentication for user {}: {}", request.username(), e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Ошибка при аутентификации: " + e.getMessage()));
     }
+}
+
     
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
