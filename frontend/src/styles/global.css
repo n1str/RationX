@@ -1,0 +1,66 @@
+/* Глобальные стили для приложения */
+
+/* Исправление проблемы с формой транзакций */
+#transaction-form-container,
+#transaction-form-container * {
+  visibility: visible !important;
+  display: block !important;
+  opacity: 1 !important;
+  z-index: 2000 !important;
+}
+
+/* Исключения для определенных элементов формы */
+#transaction-form-container button,
+#transaction-form-container input,
+#transaction-form-container select,
+#transaction-form-container .MuiFormControl-root,
+#transaction-form-container .MuiInputBase-root,
+#transaction-form-container .MuiButtonBase-root {
+  display: inline-flex !important;
+}
+
+#transaction-form-container .MuiFormLabel-root,
+#transaction-form-container .MuiInputLabel-root,
+#transaction-form-container .MuiFormHelperText-root {
+  display: inline-block !important;
+}
+
+#transaction-form-container .MuiStack-root {
+  display: flex !important;
+}
+
+#transaction-form-container .MuiToggleButtonGroup-root {
+  display: inline-flex !important;
+}
+
+#transaction-form-container .MuiToggleButton-root {
+  display: inline-flex !important;
+}
+
+/* Общие стили улучшения интерфейса */
+.MuiButton-root {
+  transition: all 0.3s ease !important;
+}
+
+.MuiPaper-root {
+  transition: all 0.3s ease !important;
+}
+
+/* Анимации для элементов интерфейса */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease forwards;
+}
