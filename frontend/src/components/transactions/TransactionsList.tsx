@@ -20,6 +20,7 @@ import {
   CircularProgress,
   useTheme,
   Stack,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -161,9 +162,20 @@ const TransactionsList: React.FC = () => {
   };
   
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+    <Box sx={{ 
+      width: '100%', 
+      maxWidth: '100%',
+      mx: 'auto'
+    }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 2.5,
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 2, sm: 0 }
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           Транзакции
           {Array.isArray(filteredTransactions) && (
             <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
@@ -175,218 +187,258 @@ const TransactionsList: React.FC = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => navigate('/transactions/new')}
-          sx={{ borderRadius: 2, px: 3 }}
+          sx={{ 
+            borderRadius: 1, 
+            px: 2, 
+            py: 0.75,
+            width: { xs: '100%', sm: 'auto' }
+          }}
         >
           Новая транзакция
         </Button>
       </Box>
       
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Paper sx={{ mb: 3, p: 2, borderRadius: 3 }}>
-          <Stack spacing={2} alignItems="center">
-            <TextField
-              fullWidth
+      <Paper sx={{ 
+        mb: 2.5, 
+        p: { xs: 1.5, sm: 2 }, 
+        borderRadius: 1.5 
+      }}>
+        <Stack spacing={2}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            size="medium"
+            placeholder="Поиск транзакций..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              )
+            }}
+          />
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            spacing={1} 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'flex-start', 
+              alignItems: { xs: 'stretch', sm: 'center' }
+            }}
+          >
+            <Button
               variant="outlined"
-              placeholder="Поиск транзакций..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                sx: { borderRadius: 2 }
+              startIcon={<FilterIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              sx={{ 
+                borderRadius: 1,
+                width: { xs: '100%', sm: 'auto' }
               }}
+            >
+              Фильтры
+            </Button>
+            <Button
+              variant="text"
+              disabled={Object.keys(filters).length === 0}
+              onClick={() => dispatch(clearFilters())}
+              sx={{ 
+                width: { xs: '100%', sm: 'auto' }
+              }}
+            >
+              Сбросить фильтры
+            </Button>
+          </Stack>
+        </Stack>
+        
+        {showFilters && (
+          <Box sx={{ mt: 2 }}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" sx={{ mb: 2 }}>
+              Фильтры транзакций
+            </Typography>
+            <TransactionsFilter 
+              onApplyFilters={(filters: TransactionFilters) => {
+                dispatch(setFilters(filters));
+                setShowFilters(false);
+              }}
+              categories={categories}
+              currentFilters={filters}
             />
-            <Stack direction="row" spacing={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+          </Box>
+        )}
+      </Paper>
+      
+      <Paper sx={{ 
+        borderRadius: 1.5, 
+        overflow: 'hidden',
+        width: '100%',
+        overflowX: 'auto'
+      }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 5 }}>
+            <CircularProgress />
+          </Box>
+        ) : Array.isArray(filteredTransactions) && filteredTransactions.length > 0 ? (
+          <>
+            <TableContainer>
+              <Table 
+                size="medium"
+                sx={{
+                  minWidth: '750px'
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell width="5%">Тип</TableCell>
+                    <TableCell width="30%">Описание</TableCell>
+                    <TableCell width="20%">Категория</TableCell>
+                    <TableCell width="15%">Дата</TableCell>
+                    <TableCell width="15%">Сумма</TableCell>
+                    <TableCell width="10%">Статус</TableCell>
+                    <TableCell width="5%" align="right">Действия</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedTransactions.map((transaction) => {
+                    const category = Array.isArray(categories)
+                      ? categories.find(cat => cat?.id === transaction?.categoryId)
+                      : null;
+                    
+                    return (
+                      <TableRow
+                        key={transaction.id}
+                        hover
+                        onClick={() => navigate(`/transactions/${transaction.id}`)}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': { 
+                            bgcolor: 'action.hover',
+                          },
+                          '&:last-child td, &:last-child th': { border: 0 },
+                        }}
+                      >
+                        <TableCell>
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+                            }}
+                          >
+                            {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                            {transaction.description}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {transaction.recipientName || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {category?.name || 'Без категории'}
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(transaction.transactionDate)}
+                        </TableCell>
+                        <TableCell>
+                          <Typography 
+                            sx={{ 
+                              color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {transaction.type === 'DEBIT' ? '-' : '+'}{formatCurrency(transaction.amount)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={transaction.status} 
+                            size="small"
+                            color={getStatusChipColor(transaction.status) as any}
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <Tooltip title="Редактировать">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/transactions/${transaction.id}/edit`);
+                                }}
+                                size="small"
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Удалить">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTransaction(transaction.id!);
+                                }}
+                                size="small"
+                                color="error"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            <TablePagination
+              component="div"
+              count={filteredTransactions.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Строк на странице:"
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              sx={{ borderTop: 1, borderColor: 'divider' }}
+            />
+          </>
+        ) : (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              p: 5,
+              textAlign: 'center'
+            }}
+          >
+            <ReceiptLong sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" gutterBottom>
+              Транзакции не найдены
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+              Не найдено транзакций, соответствующих текущим критериям фильтрации.
+            </Typography>
+            {Object.keys(filters).length > 0 && (
               <Button
                 variant="outlined"
-                startIcon={<FilterIcon />}
-                onClick={() => setShowFilters(!showFilters)}
-                sx={{ borderRadius: 2, mr: 1 }}
-              >
-                Фильтры
-              </Button>
-              <Button
-                variant="text"
-                disabled={Object.keys(filters).length === 0}
+                startIcon={<FilterAlt />}
                 onClick={() => dispatch(clearFilters())}
-                sx={{ borderRadius: 2 }}
               >
                 Сбросить фильтры
               </Button>
-            </Stack>
-          </Stack>
-          
-          {showFilters && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Фильтры транзакций
-              </Typography>
-              <TransactionsFilter 
-                onApplyFilters={(filters: TransactionFilters) => {
-                  dispatch(setFilters(filters));
-                  setShowFilters(false);
-                }}
-                categories={categories}
-                currentFilters={filters}
-              />
-            </Box>
-          )}
-        </Paper>
-        
-        <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 5 }}>
-              <CircularProgress />
-            </Box>
-          ) : Array.isArray(filteredTransactions) && filteredTransactions.length > 0 ? (
-            <>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'background.default' }}>
-                      <TableCell>Тип</TableCell>
-                      <TableCell>Описание</TableCell>
-                      <TableCell>Категория</TableCell>
-                      <TableCell>Дата</TableCell>
-                      <TableCell>Сумма</TableCell>
-                      <TableCell>Статус</TableCell>
-                      <TableCell align="right">Действия</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {paginatedTransactions.map((transaction) => {
-                      const category = Array.isArray(categories)
-                        ? categories.find(cat => cat?.id === transaction?.categoryId)
-                        : null;
-                      
-                      return (
-                        <TableRow
-                          key={transaction.id}
-                          hover
-                          onClick={() => navigate(`/transactions/${transaction.id}`)}
-                          sx={{ 
-                            cursor: 'pointer',
-                            '&:hover': { 
-                              bgcolor: 'action.hover',
-                            },
-                            '&:last-child td, &:last-child th': { border: 0 },
-                          }}
-                        >
-                          <TableCell>
-                            <Box 
-                              sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
-                              }}
-                            >
-                              {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                              {transaction.description}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {transaction.recipientName || '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            {category?.name || 'Без категории'}
-                          </TableCell>
-                          <TableCell>
-                            {formatDate(transaction.transactionDate)}
-                          </TableCell>
-                          <TableCell>
-                            <Typography 
-                              sx={{ 
-                                color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {transaction.type === 'DEBIT' ? '-' : '+'}{formatCurrency(transaction.amount)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={transaction.status} 
-                              size="small"
-                              color={getStatusChipColor(transaction.status) as any}
-                              sx={{ borderRadius: 1 }}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                              <Tooltip title="Редактировать">
-                                <IconButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/transactions/${transaction.id}/edit`);
-                                  }}
-                                  size="small"
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Удалить">
-                                <IconButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteTransaction(transaction.id!);
-                                  }}
-                                  size="small"
-                                  color="error"
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 25, 50]}
-                component="div"
-                count={filteredTransactions.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-              />
-            </>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4 }}>
-              <ReceiptLong sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Транзакции не найдены
-              </Typography>
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
-                Не найдено транзакций, соответствующих текущим критериям фильтрации.
-              </Typography>
-              <Button 
-                variant="outlined" 
-                startIcon={<FilterAlt />} 
-                onClick={() => dispatch(clearFilters())}
-                sx={{ mt: 1 }}
-              >
-                Сбросить фильтры
-              </Button>
-            </Box>
-          )}
-        </Paper>
-      </motion.div>
+            )}
+          </Box>
+        )}
+      </Paper>
     </Box>
   );
 };

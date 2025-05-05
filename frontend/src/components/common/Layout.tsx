@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   useMediaQuery,
   ListItemButton,
   Tooltip,
+  Container,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -35,15 +36,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../../hooks/reduxHooks';
 import { logout } from '../../store/slices/authSlice';
 
-const drawerWidth = 240;
+// Увеличиваем ширину меню
+const drawerWidth = 250;
 
 const Layout: React.FC = () => {
+  const theme = useTheme();
+  // Создаем более точные breakpoints
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // до 600px
+  const isTablet = useMediaQuery('(min-width:601px) and (max-width:919px)'); // от 601px до 919px
+  const isDesktop = useMediaQuery('(min-width:920px)'); // от 920px и выше
+  
+  // Меню всегда закрыто по умолчанию, независимо от размера экрана
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
   
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
@@ -69,9 +76,8 @@ const Layout: React.FC = () => {
 
   const handleNavigate = (path: string) => {
     navigate(path);
-    if (isMobile) {
-      setOpen(false);
-    }
+    // Всегда закрываем меню при навигации, независимо от размера экрана
+    setOpen(false);
   };
 
   const menuItems = [
@@ -146,15 +152,12 @@ const Layout: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{
-          width: { md: open ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          ml: { md: open ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
+          width: '100%',
+          zIndex: theme.zIndex.drawer + 1,
           boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
           backdropFilter: 'blur(20px)',
           backgroundColor: 'rgba(30, 30, 30, 0.8)',
@@ -240,49 +243,40 @@ const Layout: React.FC = () => {
         </Toolbar>
       </AppBar>
       
+      {/* Drawer - боковое меню - всегда временное для всех размеров экрана */}
       <Drawer
-        variant="persistent"
+        variant="temporary"
         anchor="left"
         open={open}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // Улучшает производительность открытия
+          BackdropProps: { 
+            style: { backgroundColor: 'transparent' } // Прозрачный бэкдроп
+          }
+        }}
         sx={{
           width: drawerWidth,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            background: theme => theme.palette.mode === 'dark' 
-              ? 'linear-gradient(180deg, #1a1a2e 0%, #121212 100%)' 
-              : 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
-            borderRight: theme => theme.palette.mode === 'dark' 
-              ? '1px solid rgba(255,255,255,0.05)' 
-              : '1px solid rgba(0,0,0,0.05)',
-            boxShadow: theme => theme.palette.mode === 'dark' 
-              ? '5px 0 15px rgba(0,0,0,0.2)' 
-              : '5px 0 15px rgba(0,0,0,0.05)',
+            backgroundColor: 'rgba(25, 25, 25, 0.95)', // Немного прозрачный фон
+            backdropFilter: 'blur(8px)', // Эффект размытия
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            borderRight: theme => `1px solid ${theme.palette.divider}`,
+            color: '#fff' // Белый текст для лучшей читаемости
           },
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+        <Toolbar /> {/* Пространство для AppBar */}
+        <Box sx={{ p: 3 }}> {/* Увеличил отступы */}
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main', mb: 3 }}>
             FINANCE APP
           </Typography>
-          {!isMobile && (
-            <IconButton onClick={handleDrawerToggle}>
-              <ChevronLeftIcon />
-            </IconButton>
-          )}
-        </Box>
-        <Divider />
-        <Box sx={{ p: 2 }}>
-          <List component={motion.ul}>
-            {menuItems.map((item, index) => (
+          
+          <List sx={{ mt: 2 }}>
+            {menuItems.map((item) => (
               <NavListItem
                 key={item.path}
                 icon={item.icon}
@@ -294,17 +288,18 @@ const Layout: React.FC = () => {
           </List>
         </Box>
         <Box sx={{ flexGrow: 1 }} />
-        <Divider />
-        <List>
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+        <List sx={{ p: 2 }}>
           <ListItem disablePadding>
-            <ListItemButton onClick={handleLogout} sx={{ mx: 1, borderRadius: 2 }}>
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                <LogoutIcon color="error" />
+            <ListItemButton onClick={handleLogout} sx={{ mx: 1, borderRadius: 2, py: 1.5 }}>
+              <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
+                <LogoutIcon />
               </ListItemIcon>
               <ListItemText
-                primary="Logout"
+                primary="Выйти из аккаунта"
                 primaryTypographyProps={{
-                  color: 'error',
+                  color: 'error.main',
+                  fontWeight: 500
                 }}
               />
             </ListItemButton>
@@ -312,32 +307,53 @@ const Layout: React.FC = () => {
         </List>
       </Drawer>
       
+      {/* Main Content - всегда занимает все доступное пространство */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
-          width: { md: open ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          ml: { md: open ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['width', 'margin'], {
+          width: '100%',
+          mt: '64px', // Высота AppBar
+          p: 0, // Убираем отступы внешнего бокса
+          display: 'flex',
+          justifyContent: 'center', // Центрируем содержимое горизонтально
+          // Убираем margin-left, который зависит от состояния меню
+          transition: theme.transitions.create('margin-left', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
-          mt: 8,
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            style={{ height: '100%' }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Container 
+          sx={{ 
+            py: 3,
+            px: { xs: 2, sm: 3 },
+            mx: 'auto',
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'flex-start', // Выравниваем контент по левому краю
+            width: '100%',
+            maxWidth: { 
+              xs: '100%',
+              sm: '100%',
+              md: '1200px'  // Увеличиваем максимальную ширину для больших экранов
+            }
+          }}
+          disableGutters
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ width: '100%' }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </Container>
       </Box>
     </Box>
   );

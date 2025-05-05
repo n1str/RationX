@@ -79,16 +79,16 @@ const TransactionFormModal: React.FC = () => {
   const { selectedTransaction, loading, error } = useAppSelector(state => state.transactions);
   const { items: categories, loading: categoriesLoading } = useAppSelector(state => state.categories);
   
-  // Фильтруем категории в зависимости от типа транзакции
-  const filteredCategories = Array.isArray(categories) ? categories.filter(
-    category => category.type === formData.type
-  ) : [];
-
   const [open, setOpen] = useState(true);
   const [formData, setFormData] = useState<Transaction>(initialFormState);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [date, setDate] = useState<Date | null>(new Date());
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Фильтруем категории в зависимости от типа транзакции
+  const filteredCategories = Array.isArray(categories) ? categories.filter(
+    category => category.type === formData.type
+  ) : [];
   
   // Fetch data
   useEffect(() => {
@@ -221,16 +221,13 @@ const TransactionFormModal: React.FC = () => {
     <Dialog 
       open={open} 
       onClose={handleClose} 
-      maxWidth="md" 
+      maxWidth="sm" 
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 4,
-          boxShadow: 24,
-          p: 2,
-          background: theme => theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' 
-            : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+          borderRadius: 2,
+          boxShadow: 6,
+          overflow: 'hidden'
         }
       }}
       TransitionProps={{
@@ -240,288 +237,225 @@ const TransactionFormModal: React.FC = () => {
         animate: "animate",
         exit: "exit"
       } as any}
-      sx={{ 
-        zIndex: 9999,
-        visibility: 'visible !important'
-      }}
     >
-      <Box sx={{ position: 'relative' }}>
+      <Box>
         <DialogTitle sx={{ 
-          p: 3, 
-          pb: 1, 
+          p: 2,
           display: 'flex', 
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${theme.palette.divider}`
         }}>
-          <Typography variant="h5" fontWeight={700}>
+          <Typography variant="h6">
             {isEditing ? 'Редактировать транзакцию' : 'Новая транзакция'}
           </Typography>
           <IconButton 
             edge="end" 
             color="inherit" 
             onClick={handleClose}
-            component={motion.button}
-            whileHover={{ rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
+            size="small"
           >
             <Close />
           </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 3, pt: 2 }}>
+        <DialogContent sx={{ p: 3 }}>
           <Box component="form" onSubmit={handleSubmit} noValidate>
-            <motion.div
-              initial="initial"
-              animate="animate"
-              variants={formControlVariants}
-              custom={0}
-            >
-              <Box sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                mb: 4,
-                mt: 2
-              }}>
-                <ToggleButtonGroup
-                  value={formData.type}
-                  exclusive
-                  onChange={(e, newValue) => {
-                    if (newValue !== null) {
-                      handleChange({
-                        target: {
-                          name: 'type',
-                          value: newValue
-                        }
-                      } as React.ChangeEvent<HTMLInputElement>);
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              mb: 3,
+              mt: 1
+            }}>
+              <ToggleButtonGroup
+                value={formData.type}
+                exclusive
+                onChange={(e, newValue) => {
+                  if (newValue !== null) {
+                    handleChange({
+                      target: {
+                        name: 'type',
+                        value: newValue
+                      }
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }
+                }}
+                color="primary"
+                fullWidth
+                size="medium"
+                sx={{ maxWidth: 350 }}
+              >
+                <ToggleButton 
+                  value="CREDIT" 
+                  sx={{ 
+                    py: 1,
+                    color: 'success.main',
+                    '&.Mui-selected': {
+                      bgcolor: 'success.main',
+                      color: 'white',
                     }
                   }}
-                  color="primary"
-                  fullWidth
-                  sx={{ maxWidth: 400, mx: 'auto' }}
                 >
-                  <ToggleButton 
-                    value="CREDIT" 
-                    sx={{ 
-                      py: 1.5, 
-                      borderRadius: '12px 0 0 12px',
-                      color: 'success.main',
-                      '&.Mui-selected': {
-                        bgcolor: 'success.main',
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: 'success.dark',
-                        }
-                      }
-                    }}
-                  >
-                    <TrendingUp sx={{ mr: 1 }} />
-                    Доход
-                  </ToggleButton>
-                  <ToggleButton 
-                    value="DEBIT" 
-                    sx={{ 
-                      py: 1.5, 
-                      borderRadius: '0 12px 12px 0',
-                      color: 'error.main',
-                      '&.Mui-selected': {
-                        bgcolor: 'error.main',
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: 'error.dark',
-                        }
-                      }
-                    }}
-                  >
-                    <TrendingDown sx={{ mr: 1 }} />
-                    Расход
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-            </motion.div>
+                  <TrendingUp sx={{ mr: 1 }} />
+                  Доход
+                </ToggleButton>
+                <ToggleButton 
+                  value="DEBIT" 
+                  sx={{ 
+                    py: 1,
+                    color: 'error.main',
+                    '&.Mui-selected': {
+                      bgcolor: 'error.main',
+                      color: 'white',
+                    }
+                  }}
+                >
+                  <TrendingDown sx={{ mr: 1 }} />
+                  Расход
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
             
-            <Stack spacing={3}>
-              <motion.div
-                initial="initial"
-                animate="animate"
-                variants={formControlVariants}
-                custom={1}
-              >
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                  <InputLabel id="transaction-amount-label">Сумма</InputLabel>
-                  <TextField
-                    id="transaction-amount"
-                    name="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={handleChange}
-                    placeholder="0.00"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">₽</InputAdornment>
-                      ),
+            <Stack spacing={2.5}>
+              <FormControl fullWidth>
+                <TextField
+                  id="transaction-amount"
+                  name="amount"
+                  type="number"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  placeholder="0"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">₽</InputAdornment>
+                    ),
+                  }}
+                  error={!!formErrors.amount}
+                  helperText={formErrors.amount}
+                  label="Сумма"
+                  size="medium"
+                  variant="outlined"
+                />
+              </FormControl>
+
+              <FormControl fullWidth>
+                <TextField
+                  id="transaction-description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Описание транзакции"
+                  multiline
+                  rows={2}
+                  error={!!formErrors.description}
+                  helperText={formErrors.description}
+                  label="Описание"
+                  size="medium"
+                  variant="outlined"
+                />
+              </FormControl>
+
+              <FormControl fullWidth>
+                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
+                  <DatePicker
+                    label="Дата транзакции"
+                    value={date}
+                    onChange={handleDateChange}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        error: !!formErrors.transactionDate,
+                        helperText: formErrors.transactionDate,
+                        size: "medium",
+                        variant: "outlined"
+                      },
                     }}
-                    error={!!formErrors.amount}
-                    helperText={formErrors.amount}
-                    label="Сумма"
                   />
-                </FormControl>
-              </motion.div>
+                </LocalizationProvider>
+              </FormControl>
 
-              <motion.div
-                initial="initial"
-                animate="animate"
-                variants={formControlVariants}
-                custom={2}
-              >
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                  <TextField
-                    id="transaction-description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Описание транзакции"
-                    multiline
-                    rows={3}
-                    error={!!formErrors.description}
-                    helperText={formErrors.description}
-                    label="Описание"
-                  />
-                </FormControl>
-              </motion.div>
+              <FormControl fullWidth error={!!formErrors.categoryId}>
+                <InputLabel id="transaction-category-label">Категория</InputLabel>
+                <Select
+                  labelId="transaction-category-label"
+                  id="transaction-category"
+                  name="categoryId"
+                  value={formData.categoryId || ''}
+                  onChange={handleChange as any}
+                  label="Категория"
+                  size="medium"
+                  variant="outlined"
+                >
+                  <MenuItem value="">
+                    <em>Выберите категорию</em>
+                  </MenuItem>
+                  {Array.isArray(filteredCategories) && filteredCategories.length > 0 
+                    ? filteredCategories.map((category) => (
+                      <MenuItem key={category.id} value={category.id}>
+                        {category.name}
+                      </MenuItem>
+                    ))
+                    : categoriesLoading ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка...
+                      </MenuItem>
+                    ) : (
+                      <MenuItem disabled>
+                        Нет категорий для данного типа
+                      </MenuItem>
+                    )}
+                </Select>
+                {formErrors.categoryId && (
+                  <FormHelperText error>{formErrors.categoryId}</FormHelperText>
+                )}
+              </FormControl>
 
-              <motion.div
-                initial="initial"
-                animate="animate"
-                variants={formControlVariants}
-                custom={3}
-              >
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
-                    <DatePicker
-                      label="Дата транзакции"
-                      value={date}
-                      onChange={handleDateChange}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!formErrors.transactionDate,
-                          helperText: formErrors.transactionDate,
-                        },
-                      }}
-                    />
-                  </LocalizationProvider>
-                </FormControl>
-              </motion.div>
-
-              <motion.div
-                initial="initial"
-                animate="animate"
-                variants={formControlVariants}
-                custom={4}
-              >
-                <FormControl fullWidth sx={{ mb: 3 }} error={!!formErrors.categoryId}>
-                  <InputLabel id="transaction-category-label">Категория</InputLabel>
-                  <Select
-                    labelId="transaction-category-label"
-                    id="transaction-category"
-                    name="categoryId"
-                    value={formData.categoryId || ''}
-                    onChange={handleChange as any}
-                    label="Категория"
-                    displayEmpty
-                    renderValue={(selected) => {
-                      if (!selected) {
-                        return <Typography color="text.secondary">Выберите категорию</Typography>;
-                      }
-                      const category = Array.isArray(categories) ? categories.find((cat) => cat.id === selected) : null;
-                      return category ? category.name : 'Без категории';
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Без категории</em>
-                    </MenuItem>
-                    {Array.isArray(filteredCategories) && filteredCategories.length > 0 
-                      ? filteredCategories.map((category) => (
-                        <MenuItem key={category.id} value={category.id}>
-                          {category.name}
-                        </MenuItem>
-                      ))
-                      : Array.isArray(categories) && categories.map((category) => (
-                        <MenuItem key={category.id} value={category.id}>
-                          {category.name}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                  {formErrors.categoryId && (
-                    <FormHelperText error>{formErrors.categoryId}</FormHelperText>
-                  )}
-                </FormControl>
-              </motion.div>
-
-              <motion.div
-                initial="initial"
-                animate="animate"
-                variants={formControlVariants}
-                custom={5}
-              >
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                  <InputLabel id="transaction-status-label">Статус</InputLabel>
-                  <Select
-                    labelId="transaction-status-label"
-                    id="transaction-status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange as any}
-                    label="Статус"
-                  >
-                    <MenuItem value="COMPLETED">Завершено</MenuItem>
-                    <MenuItem value="PENDING">В ожидании</MenuItem>
-                    <MenuItem value="CANCELLED">Отменено</MenuItem>
-                  </Select>
-                  {formErrors.status && (
-                    <FormHelperText error>{formErrors.status}</FormHelperText>
-                  )}
-                </FormControl>
-              </motion.div>
+              <FormControl fullWidth>
+                <InputLabel id="transaction-status-label">Статус</InputLabel>
+                <Select
+                  labelId="transaction-status-label"
+                  id="transaction-status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange as any}
+                  label="Статус"
+                  size="medium"
+                  variant="outlined"
+                >
+                  <MenuItem value="COMPLETED">Завершено</MenuItem>
+                  <MenuItem value="PENDING">В ожидании</MenuItem>
+                  <MenuItem value="CANCELLED">Отменено</MenuItem>
+                </Select>
+              </FormControl>
             </Stack>
           </Box>
+          
+          {successMessage && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography color="success.main">{successMessage}</Typography>
+            </Box>
+          )}
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, pt: 1 }}>
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+        <DialogActions sx={{ p: 2, pt: 0, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button
+            variant="outlined"
+            onClick={handleClose}
+            sx={{ minWidth: 100 }}
           >
-            <Button
-              variant="outlined"
-              onClick={handleClose}
-              sx={{ borderRadius: 2, px: 3 }}
-            >
-              Отмена
-            </Button>
-          </motion.div>
+            Отмена
+          </Button>
           
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <Button
+            variant="contained"
+            onClick={(e) => handleSubmit(e as any)}
+            color="primary"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+            sx={{ minWidth: 120 }}
           >
-            <Button
-              variant="contained"
-              onClick={(e) => handleSubmit(e as any)}
-              sx={{ 
-                borderRadius: 2, 
-                px: 3,
-                background: theme.palette.mode === 'light' 
-                  ? 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)'
-                  : 'linear-gradient(45deg, #4a148c 30%, #7c43bd 90%)',
-                boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
-              }}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : (isEditing ? <Save /> : <Add />)}
-            >
-              {isEditing ? 'Сохранить' : 'Создать'}
-            </Button>
-          </motion.div>
+            {isEditing ? 'Сохранить' : 'Создать'}
+          </Button>
         </DialogActions>
       </Box>
     </Dialog>

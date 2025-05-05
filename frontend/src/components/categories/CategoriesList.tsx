@@ -171,27 +171,35 @@ const CategoriesList: React.FC = () => {
   };
   
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 3,
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 2, sm: 0 }
+      }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           Категории
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => navigate('/categories/new')}
-          sx={{ borderRadius: 2, px: 3 }}
+          sx={{ borderRadius: 1, px: 2, py: 1 }}
         >
           Добавить категорию
         </Button>
       </Box>
       
-      <Paper sx={{ mb: 3, p: 2, borderRadius: 3 }}>
+      <Paper sx={{ mb: 3, p: { xs: 1.5, sm: 2 }, borderRadius: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
           <Box sx={{ width: { xs: '100%', md: '50%' } }}>
             <TextField
               fullWidth
               variant="outlined"
+              size="medium"
               placeholder="Поиск категорий..."
               value={searchTerm}
               onChange={handleSearchChange}
@@ -200,8 +208,7 @@ const CategoriesList: React.FC = () => {
                   <InputAdornment position="start">
                     <SearchIcon />
                   </InputAdornment>
-                ),
-                sx: { borderRadius: 2 }
+                )
               }}
             />
           </Box>
@@ -214,7 +221,6 @@ const CategoriesList: React.FC = () => {
               variant="fullWidth"
               sx={{
                 '& .MuiTab-root': {
-                  borderRadius: 2,
                   minHeight: 48,
                   textTransform: 'none',
                   fontWeight: 500,
@@ -353,104 +359,92 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
       initial="hidden"
       animate="visible"
     >
-      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 3 }}>
+      <Box sx={{ 
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(3, 1fr)',
+          lg: 'repeat(4, 1fr)'
+        },
+        gap: { xs: 1.5, sm: 2 },
+        width: '100%',
+        maxWidth: '100%',
+        mx: 'auto'
+      }}>
         {categories.map((category) => (
-          <Box 
-            key={category.id}
-            sx={{ 
-              width: { 
-                xs: '100%', 
-                sm: 'calc(50% - 12px)', 
-                md: 'calc(33.333% - 16px)', 
-                lg: 'calc(25% - 18px)' 
-              } 
-            }}
-          >
-            <motion.div variants={itemVariants}>
-              <Card 
-                sx={{ 
-                  borderRadius: 3,
-                  transition: 'all 0.3s ease',
-                  height: '100%',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: (theme) => theme.shadows[4],
-                  },
-                }}
-              >
-                <Box 
-                  sx={{ 
-                    position: 'absolute', 
-                    top: 10, 
-                    right: 10,
-                    display: 'flex',
-                    gap: 0.5,
-                    opacity: 0,
-                    transition: 'opacity 0.2s',
-                  }}
-                  className="category-actions"
-                >
-                  <Tooltip title="Редактировать категорию">
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onEdit(category.id!)}
-                      sx={{ bgcolor: 'background.paper' }}
-                    >
+          <motion.div key={category.id} variants={itemVariants}>
+            <Card sx={{ 
+              borderRadius: 1.5,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '120px',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                boxShadow: (theme) => theme.shadows[3],
+              }
+            }}>
+              <CardContent sx={{ 
+                flexGrow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                p: { xs: 1.5, sm: 2 },
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: { xs: '120px', sm: '140px', md: '160px' }
+                    }}
+                  >
+                    {category.name}
+                  </Typography>
+                  <Chip 
+                    label={category.type === 'DEBIT' ? 'Расход' : 'Доход'} 
+                    color={category.type === 'DEBIT' ? 'error' : 'success'}
+                    size="small"
+                    sx={{ height: 22, fontSize: 11 }}
+                  />
+                </Box>
+                {category.description && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      mb: 2, 
+                      flexGrow: 1,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    {category.description}
+                  </Typography>
+                )}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 'auto' }}>
+                  <Tooltip title="Редактировать">
+                    <IconButton size="small" onClick={() => onEdit(category.id!)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Удалить категорию">
-                    <IconButton 
-                      size="small" 
-                      color="error"
-                      onClick={() => onDelete(category)}
-                      sx={{ bgcolor: 'background.paper' }}
-                    >
+                  <Tooltip title="Удалить">
+                    <IconButton size="small" color="error" onClick={() => onDelete(category)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Box>
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                    <Box 
-                      sx={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
-                        bgcolor: category.type === 'DEBIT' ? 'error.main' : 'success.main',
-                        opacity: 0.8,
-                        mr: 2,
-                        mb: 1,
-                      }}
-                    >
-                      {category.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        {category.name}
-                      </Typography>
-                      <Chip 
-                        label={category.type === 'DEBIT' ? 'Расход' : 'Доход'} 
-                        size="small"
-                        color={category.type === 'DEBIT' ? 'error' : 'success'}
-                        sx={{ height: 24, borderRadius: 1 }}
-                      />
-                    </Box>
-                  </Box>
-                  {category.description && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      {category.description}
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
-      </Stack>
+      </Box>
     </motion.div>
   );
 };
