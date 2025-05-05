@@ -54,6 +54,7 @@ const CategoryForm: React.FC = () => {
   const [formData, setFormData] = useState<Category>(initialFormState);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   
   // Fetch category data if editing
   useEffect(() => {
@@ -72,6 +73,7 @@ const CategoryForm: React.FC = () => {
   // Set form data when editing
   useEffect(() => {
     if (isEditing && selectedCategory) {
+      console.log('Загружена категория для редактирования:', selectedCategory);
       setFormData(selectedCategory);
     }
   }, [isEditing, selectedCategory]);
@@ -102,12 +104,12 @@ const CategoryForm: React.FC = () => {
     let isValid = true;
     
     if (!formData.name.trim()) {
-      errors.name = 'Name is required';
+      errors.name = 'Название категории обязательно';
       isValid = false;
     }
     
     if (!formData.type) {
-      errors.type = 'Type is required';
+      errors.type = 'Тип категории обязателен';
       isValid = false;
     }
     
@@ -123,13 +125,23 @@ const CategoryForm: React.FC = () => {
       return;
     }
     
+    // Сбрасываем сообщения
+    setSuccessMessage('');
+    setErrorMessage('');
+    
     try {
+      console.log('Отправка формы категории:', formData);
+      
       if (isEditing && id) {
-        await dispatch(updateCategory({ id: Number(id), data: formData })).unwrap();
-        setSuccessMessage('Category updated successfully');
+        console.log(`Обновление существующей категории с ID=${id}:`, formData);
+        const result = await dispatch(updateCategory({ id: Number(id), data: formData })).unwrap();
+        console.log('Результат обновления категории:', result);
+        setSuccessMessage('Категория успешно обновлена');
       } else {
-        await dispatch(createCategory(formData)).unwrap();
-        setSuccessMessage('Category created successfully');
+        console.log('Создание новой категории:', formData);
+        const result = await dispatch(createCategory(formData)).unwrap();
+        console.log('Результат создания категории:', result);
+        setSuccessMessage('Категория успешно создана');
         // Reset form for new category
         setFormData(initialFormState);
       }
@@ -138,8 +150,17 @@ const CategoryForm: React.FC = () => {
       setTimeout(() => {
         navigate('/categories');
       }, 1500);
-    } catch (err) {
-      console.error('Error saving category:', err);
+    } catch (err: any) {
+      console.error('Ошибка при сохранении категории:', err);
+      
+      // Отображаем сообщение об ошибке
+      if (err.response?.data?.error) {
+        setErrorMessage(err.response.data.error);
+      } else if (err.message) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('Произошла ошибка при сохранении категории');
+      }
     }
   };
   
@@ -166,7 +187,7 @@ const CategoryForm: React.FC = () => {
             <ArrowBack />
           </IconButton>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {isEditing ? 'Edit Category' : 'Add New Category'}
+            {isEditing ? 'Редактировать категорию' : 'Добавить новую категорию'}
           </Typography>
         </Box>
         
@@ -181,7 +202,7 @@ const CategoryForm: React.FC = () => {
             <Stack spacing={3}>
               <Box>
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Category Details
+                  Сведения о категории
                 </Typography>
                 <Divider sx={{ my: 1 }} />
               </Box>
@@ -192,7 +213,7 @@ const CategoryForm: React.FC = () => {
                   fullWidth
                   id="name"
                   name="name"
-                  label="Category Name"
+                  label="Название категории"
                   value={formData.name}
                   onChange={handleChange}
                   error={!!formErrors.name}
@@ -202,17 +223,17 @@ const CategoryForm: React.FC = () => {
               
               <Box>
                 <FormControl fullWidth variant="outlined" error={!!formErrors.type}>
-                  <InputLabel id="type-label">Category Type</InputLabel>
+                  <InputLabel id="type-label">Тип категории</InputLabel>
                   <Select
                     labelId="type-label"
                     id="type"
                     name="type"
                     value={formData.type}
                     onChange={handleChange as any}
-                    label="Category Type"
+                    label="Тип категории"
                   >
-                    <MenuItem value="DEBIT">Expense</MenuItem>
-                    <MenuItem value="CREDIT">Income</MenuItem>
+                    <MenuItem value="DEBIT">Расход</MenuItem>
+                    <MenuItem value="CREDIT">Доход</MenuItem>
                   </Select>
                   {formErrors.type && (
                     <FormHelperText>{formErrors.type}</FormHelperText>
@@ -225,7 +246,7 @@ const CategoryForm: React.FC = () => {
                   fullWidth
                   id="description"
                   name="description"
-                  label="Description (Optional)"
+                  label="Описание (опционально)"
                   multiline
                   rows={3}
                   value={formData.description || ''}
@@ -238,7 +259,7 @@ const CategoryForm: React.FC = () => {
                   fullWidth
                   id="iconUrl"
                   name="iconUrl"
-                  label="Icon URL (Optional)"
+                  label="URL иконки (опционально)"
                   value={formData.iconUrl || ''}
                   onChange={handleChange}
                 />
@@ -248,35 +269,19 @@ const CategoryForm: React.FC = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                   <Button
                     variant="outlined"
-                    color="inherit"
+                    color="primary"
                     onClick={() => navigate('/categories')}
-                    sx={{ borderRadius: 2 }}
                   >
-                    Cancel
+                    Отмена
                   </Button>
                   <Button
                     type="submit"
                     variant="contained"
                     color="primary"
                     disabled={loading}
-                    sx={{ 
-                      borderRadius: 2,
-                      position: 'relative',
-                      minWidth: 100
-                    }}
+                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
                   >
-                    {loading ? (
-                      <CircularProgress 
-                        size={24} 
-                        sx={{ 
-                          position: 'absolute',
-                          top: '50%',
-                          left: '50%',
-                          marginTop: '-12px',
-                          marginLeft: '-12px',
-                        }}
-                      />
-                    ) : isEditing ? 'Update' : 'Create'}
+                    {loading ? 'Сохранение...' : isEditing ? 'Обновить' : 'Создать'}
                   </Button>
                 </Box>
               </Box>
@@ -287,17 +292,22 @@ const CategoryForm: React.FC = () => {
       
       <Snackbar
         open={!!successMessage}
-        autoHideDuration={3000}
+        autoHideDuration={5000}
         onClose={() => setSuccessMessage('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setSuccessMessage('')} 
-          severity="success" 
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={() => setSuccessMessage('')} severity="success">
           {successMessage}
+        </Alert>
+      </Snackbar>
+      
+      {/* Уведомление об ошибке */}
+      <Snackbar
+        open={!!errorMessage}
+        autoHideDuration={5000}
+        onClose={() => setErrorMessage('')}
+      >
+        <Alert onClose={() => setErrorMessage('')} severity="error">
+          {errorMessage}
         </Alert>
       </Snackbar>
     </Box>

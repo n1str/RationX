@@ -142,6 +142,27 @@ class TransactionService {
     }
   }
 
+  /**
+   * Быстрое создание транзакции с минимальными данными
+   */
+  async createQuickTransaction(
+    amount: number, 
+    description: string, 
+    categoryId: number, 
+    type: 'DEBIT' | 'CREDIT' = 'DEBIT'
+  ): Promise<Transaction> {
+    const transaction: Transaction = {
+      amount,
+      description,
+      categoryId,
+      type,
+      transactionDate: new Date().toISOString().split('T')[0],
+      status: 'COMPLETED'
+    };
+    
+    return this.createTransaction(transaction);
+  }
+
   async updateTransaction(id: number, transaction: Transaction): Promise<Transaction> {
     try {
       const response = await api.put(`${TRANSACTION_ENDPOINTS.BASE}/${id}`, transaction);

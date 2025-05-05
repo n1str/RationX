@@ -19,7 +19,9 @@ import {
   CircularProgress,
   ToggleButtonGroup,
   ToggleButton,
-  useTheme
+  useTheme,
+  Chip,
+  Divider
 } from '@mui/material';
 import {
   Close,
@@ -28,6 +30,7 @@ import {
   Save,
   TrendingUp,
   TrendingDown,
+  Category as CategoryIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -43,9 +46,11 @@ import {
   fetchAllTransactions
 } from '../../store/slices/transactionsSlice';
 import { 
-  fetchAllCategories
+  fetchAllCategories,
+  fetchCategoriesByType
 } from '../../store/slices/categoriesSlice';
 import { Transaction } from '../../services/transactionService';
+import { Category } from '../../services/categoryService';
 
 const initialFormState: Transaction = {
   amount: 0,
@@ -85,14 +90,42 @@ const TransactionFormModal: React.FC = () => {
   const [date, setDate] = useState<Date | null>(new Date());
   const [isSaving, setIsSaving] = useState(false);
   
-  // Фильтруем категории в зависимости от типа транзакции
-  const filteredCategories = Array.isArray(categories) ? categories.filter(
-    category => category.type === formData.type
-  ) : [];
+  // Фильтруем категории по типу транзакции
+  const filteredCategories = Array.isArray(categories) 
+    ? categories.filter(category => category.type === formData.type)
+    : [];
   
-  // Fetch data
+  // Группируем категории для удобного отображения
+  const expenseCategories = React.useMemo(() => {
+    return Array.isArray(categories) 
+      ? categories.filter(category => category.type === 'CREDIT' || category.applicableType === 'CREDIT')
+      : [];
+  }, [categories]);
+    
+  const incomeCategories = React.useMemo(() => {
+    return Array.isArray(categories) 
+      ? categories.filter(category => category.type === 'DEBIT' || category.applicableType === 'DEBIT')
+      : [];
+  }, [categories]);
+  
+  // Загружаем все категории при загрузке компонента
   useEffect(() => {
-    dispatch(fetchAllCategories());
+    console.log('Компонент загружается, вызываем fetchAllCategories');
+    
+    // Загружаем все категории независимо от типа
+    dispatch(fetchAllCategories())
+      .then((result) => {
+        console.log('Результат загрузки всех категорий:', result);
+        
+        // Затем загружаем категории для конкретного типа текущей транзакции
+        if (formData.type) {
+          console.log(`Загружаем категории для типа ${formData.type}`);
+          dispatch(fetchCategoriesByType(formData.type));
+        }
+      })
+      .catch((err) => {
+        console.error('Ошибка при загрузке категорий:', err);
+      });
     
     if (isEditing && id) {
       dispatch(fetchTransactionById(Number(id)));
@@ -102,6 +135,29 @@ const TransactionFormModal: React.FC = () => {
       dispatch(clearSelectedTransaction());
     };
   }, [dispatch, isEditing, id]);
+  
+  // Загружаем категории если меняется тип транзакции
+  useEffect(() => {
+    if (formData.type) {
+      console.log(`Тип транзакции изменен на: ${formData.type}, загружаем соответствующие категории`);
+      dispatch(fetchCategoriesByType(formData.type))
+        .then((result) => {
+          console.log(`Результат загрузки категорий типа ${formData.type}:`, result);
+        })
+        .catch((err) => {
+          console.error(`Ошибка при загрузке категорий типа ${formData.type}:`, err);
+        });
+    }
+  }, [dispatch, formData.type]);
+  
+  // Выводим в консоль состояние категорий для отладки
+  useEffect(() => {
+    console.log('Загруженные категории:', categories);
+    console.log('Тип категорий в массиве:', categories?.map(cat => cat.type || cat.applicableType));
+    console.log('Категории расходов (CREDIT):', expenseCategories?.length, expenseCategories);
+    console.log('Категории доходов (DEBIT):', incomeCategories?.length, incomeCategories);
+    console.log('Тип выбранной транзакции:', formData.type);
+  }, [categories, incomeCategories, expenseCategories, formData.type]);
   
   // Set form data when editing
   useEffect(() => {
@@ -124,10 +180,21 @@ const TransactionFormModal: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
     if (name) {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      // Если меняем тип транзакции, сбрасываем categoryId
+      if (name === 'type') {
+        const transactionType = String(value) as 'DEBIT' | 'CREDIT';
+        console.log(`Смена типа транзакции на: ${transactionType}`);
+        setFormData(prev => ({
+          ...prev,
+          type: transactionType,
+          categoryId: 0 // Сбрасываем выбранную категорию при смене типа
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
     }
   };
   
@@ -185,7 +252,22 @@ const TransactionFormModal: React.FC = () => {
       if (isEditing && id) {
         await dispatch(updateTransaction({ id: Number(id), data: formData })).unwrap();
       } else {
-        await dispatch(createTransaction(formData)).unwrap();
+        // Проверяем минимальный набор данных для создания транзакции
+        const { amount, description, categoryId, type, transactionDate, status } = formData;
+        if (amount > 0 && description && categoryId && type && transactionDate) {
+          // Используем минимально необходимый набор данных
+          const transactionData = {
+            amount,
+            description,
+            categoryId,
+            type,
+            transactionDate,
+            status: status || 'COMPLETED',
+          };
+          await dispatch(createTransaction(transactionData)).unwrap();
+        } else {
+          throw new Error('Отсутствуют необходимые данные для создания транзакции');
+        }
       }
       
       // Сразу перенаправляем на страницу транзакций
@@ -194,6 +276,14 @@ const TransactionFormModal: React.FC = () => {
       console.error('Ошибка сохранения транзакции:', err);
       setIsSaving(false);
     }
+  };
+
+  // Получаем имя категории по ID
+  const getCategoryNameById = (id: number): string => {
+    const category = Array.isArray(categories) 
+      ? categories.find(cat => cat.id === id)
+      : null;
+    return category ? category.name : 'Категория не найдена';
   };
   
   return (
@@ -206,8 +296,17 @@ const TransactionFormModal: React.FC = () => {
       PaperProps={{
         sx: {
           borderRadius: 2,
-          boxShadow: 6,
-          overflow: 'hidden'
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          overflow: 'hidden',
+          bgcolor: 'rgba(255, 255, 255, 0.95)',
+          backgroundImage: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(245, 245, 250, 0.9))',
+          backdropFilter: 'blur(10px)'
+        }
+      }}
+      sx={{
+        '& .MuiBackdrop-root': {
+          backgroundColor: 'rgba(30, 30, 40, 0.5)',
+          backdropFilter: 'blur(5px)'
         }
       }}
     >
@@ -219,9 +318,9 @@ const TransactionFormModal: React.FC = () => {
           justifyContent: 'space-between',
           borderBottom: `1px solid ${theme.palette.divider}`
         }}>
-          <Typography variant="h6">
+          <span className="transaction-title">
             {isEditing ? 'Редактировать транзакцию' : 'Новая транзакция'}
-          </Typography>
+          </span>
           {!isSaving && (
             <IconButton 
               edge="end" 
@@ -365,25 +464,77 @@ const TransactionFormModal: React.FC = () => {
                   size="medium"
                   variant="outlined"
                   disabled={isSaving}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <CategoryIcon sx={{ mr: 1, color: formData.type === 'DEBIT' ? 'error.main' : 'success.main' }} />
+                      {getCategoryNameById(selected as number)}
+                    </Box>
+                  )}
                 >
-                  <MenuItem value="">
+                  <MenuItem value="" disabled>
                     <em>Выберите категорию</em>
                   </MenuItem>
-                  {Array.isArray(filteredCategories) && filteredCategories.length > 0 
-                    ? filteredCategories.map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.name}
-                      </MenuItem>
-                    ))
-                    : categoriesLoading ? (
-                      <MenuItem disabled>
-                        <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка...
-                      </MenuItem>
-                    ) : (
-                      <MenuItem disabled>
-                        Нет категорий для данного типа
-                      </MenuItem>
-                    )}
+                  
+                  {/* Отладочная информация о количестве категорий */}
+                  <MenuItem disabled>
+                    <Typography variant="caption" color="text.secondary">
+                      Всего категорий: {categories?.length || 0} | 
+                      Доходы: {incomeCategories?.length || 0} | 
+                      Расходы: {expenseCategories?.length || 0}
+                    </Typography>
+                  </MenuItem>
+                  <Divider />
+                  
+                  {/* Показываем категории в зависимости от выбранного типа транзакции */}
+                  {formData.type === 'DEBIT' ? (
+                    /* Для расхода (DEBIT) показываем категории расходов */
+                    [
+                      <Box key="expense-header" sx={{ px: 2, py: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Категории расходов {expenseCategories?.length ? `(${expenseCategories.length})` : '(нет категорий)'}
+                        </Typography>
+                      </Box>,
+                      expenseCategories && expenseCategories.length > 0 ? 
+                        expenseCategories.map((category) => (
+                          <MenuItem key={category.id} value={category.id}>
+                            {category.name}
+                          </MenuItem>
+                        ))
+                      : 
+                        <MenuItem key="no-expense" disabled>
+                          <Typography variant="body2" color="text.secondary">
+                            Нет категорий расходов. Создайте их в разделе "Категории".
+                          </Typography>
+                        </MenuItem>
+                    ]
+                  ) : (
+                    /* Для дохода (CREDIT) показываем категории доходов */
+                    [
+                      <Box key="income-header" sx={{ px: 2, py: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Категории доходов {incomeCategories?.length ? `(${incomeCategories.length})` : '(нет категорий)'}
+                        </Typography>
+                      </Box>,
+                      incomeCategories && incomeCategories.length > 0 ?
+                        incomeCategories.map((category) => (
+                          <MenuItem key={category.id} value={category.id}>
+                            {category.name}
+                          </MenuItem>
+                        ))
+                      :
+                        <MenuItem key="no-income" disabled>
+                          <Typography variant="body2" color="text.secondary">
+                            Нет категорий доходов. Создайте их в разделе "Категории".
+                          </Typography>
+                        </MenuItem>
+                    ]
+                  )}
+                  
+                  {categoriesLoading && (
+                    <MenuItem disabled>
+                      <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка категорий...
+                    </MenuItem>
+                  )}
                 </Select>
                 {formErrors.categoryId && (
                   <FormHelperText error>{formErrors.categoryId}</FormHelperText>
@@ -402,6 +553,17 @@ const TransactionFormModal: React.FC = () => {
                   size="medium"
                   variant="outlined"
                   disabled={isSaving}
+                  renderValue={(selected) => (
+                    <Chip 
+                      label={selected} 
+                      color={
+                        selected === 'COMPLETED' ? 'success' : 
+                        selected === 'PENDING' ? 'warning' : 
+                        'default'
+                      }
+                      size="small"
+                    />
+                  )}
                 >
                   <MenuItem value="COMPLETED">Завершено</MenuItem>
                   <MenuItem value="PENDING">В ожидании</MenuItem>

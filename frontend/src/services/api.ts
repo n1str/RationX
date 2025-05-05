@@ -3,16 +3,18 @@ import axios from 'axios';
 // Определяем BASE_URL в зависимости от окружения
 let BASE_URL = '';
 
-// Для Docker-контейнера используем имя сервиса из docker-compose
-if (window.location.hostname !== 'localhost') {
-  BASE_URL = 'http://backend:8080';
-} else {
-  // На локальной машине используем localhost
+// В Docker и на локальной машине используем правильные URL
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  // На локальной машине
   BASE_URL = 'http://localhost:8080';
+} else {
+  // В Docker контейнере - используем абсолютный URL до backend
+  BASE_URL = 'http://backend:8080';
 }
 
-// Выводим для отладки
+// Добавляем явную проверку URL окружения
 console.log('API BASE URL:', BASE_URL, 'Hostname:', window.location.hostname);
+console.log('Режим работы:', window.location.hostname === 'localhost' ? 'Локальный режим' : 'Docker режим');
 
 const api = axios.create({
   baseURL: BASE_URL,

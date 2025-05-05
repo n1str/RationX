@@ -303,16 +303,42 @@ const Layout: React.FC = () => {
       >
         <Container 
           maxWidth={false} // Позволяет контенту занимать всю ширину
-          disableGutters // Убираем отступы по бокам
+          disableGutters // Убираем отступы по бокам контейнера
           sx={{ 
             mx: 0, // Уберем все автоматические отступы
-            px: 0,
+            px: { xs: 2, sm: 3, md: 4 }, // Добавляем горизонтальные отступы, увеличивающиеся с размером экрана
+            py: 3, // Добавляем вертикальные отступы
             width: '100%', 
             height: '100%',
             background: 'linear-gradient(to bottom, #f0f3f7, #e6ecf5)'
           }}
         >
-          <Outlet />
+          {/* Добавляем обертку вокруг Outlet для применения стилей к контенту */}
+          <Box sx={{ 
+            width: '100%', 
+            height: '100%',
+            '& > div': { // Стили для непосредственных потомков (страницы)
+              borderRadius: 2,
+              bgcolor: 'rgba(255, 255, 255, 0.7)',
+              backdropFilter: 'blur(5px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              p: { xs: 2, sm: 3 }, // Паддинги для контента внутри карточек
+              mb: 3, // Отступ между блоками
+              '&:last-child': {
+                mb: 0, // Убираем нижний отступ для последнего блока
+              },
+              // Стили для блоков статистики и других компонентов внутри страниц
+              '& .MuiPaper-root': {
+                borderRadius: 2,
+                overflow: 'hidden',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                p: { xs: 1.5, sm: 2 },
+                mb: 2.5
+              }
+            }
+          }}>
+            <Outlet />
+          </Box>
         </Container>
       </Box>
     </Box>
