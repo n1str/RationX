@@ -30,7 +30,10 @@ export const fetchGeneralStatistics = createAsyncThunk(
   'statistics/fetchGeneral',
   async (_, { rejectWithValue }) => {
     try {
-      return await statisticsService.getGeneralStatistics();
+      console.log('StatisticsSlice: запрос общей статистики...');
+      const response = await statisticsService.getGeneralStatistics();
+      console.log('StatisticsSlice: получена общая статистика:', response);
+      return response;
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch general statistics';
       return rejectWithValue(message);
@@ -78,7 +81,10 @@ export const fetchLastMonthStatistics = createAsyncThunk(
   'statistics/fetchLastMonth',
   async (_, { rejectWithValue }) => {
     try {
-      return await statisticsService.getLastMonthStatistics();
+      console.log('StatisticsSlice: запрос статистики за последний месяц...');
+      const response = await statisticsService.getLastMonthStatistics();
+      console.log('StatisticsSlice: получена статистика за последний месяц:', response);
+      return response;
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch last month statistics';
       return rejectWithValue(message);
@@ -112,14 +118,17 @@ const statisticsSlice = createSlice({
       .addCase(fetchGeneralStatistics.pending, (state) => {
         state.loading = true;
         state.error = null;
+        console.log('StatisticsSlice: начало загрузки общей статистики...');
       })
       .addCase(fetchGeneralStatistics.fulfilled, (state, action: PayloadAction<GeneralStatistics>) => {
         state.general = action.payload;
         state.loading = false;
+        console.log('StatisticsSlice: общая статистика успешно загружена:', action.payload);
       })
       .addCase(fetchGeneralStatistics.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        console.error('StatisticsSlice: ошибка загрузки общей статистики:', action.payload);
       })
       
       // Fetch statistics by category

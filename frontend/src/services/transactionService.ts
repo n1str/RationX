@@ -1,18 +1,49 @@
 import api from './api';
 
+export type PersonType = 'INDIVIDUAL' | 'LEGAL';
+export type TransactionType = 'DEBIT' | 'CREDIT';
+export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
 export interface Transaction {
   id?: number;
-  amount: number;
-  description: string;
-  transactionDate: string;
-  categoryId: number;
-  type: 'DEBIT' | 'CREDIT';
-  recipientName?: string;
-  recipientInn?: string;
-  recipientBank?: string;
-  senderBank?: string;
-  notes?: string;
-  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  status: TransactionStatus;
+  
+  // Отправитель
+  personType: PersonType;
+  name?: string;
+  inn: string;
+  address?: string;
+  phone?: string;
+  
+  // Получатель
+  personTypeRecipient: PersonType;
+  nameRecipient?: string;
+  innRecipient: string;
+  addressRecipient?: string;
+  recipientPhoneRecipient?: string;
+  
+  // Банк отправителя
+  nameBank: string;
+  bill?: string;
+  rBill?: string;
+  
+  // Банк получателя
+  nameBankRecip: string;
+  billRecip: string;
+  rBillRecip: string;
+  
+  comment?: string;
+  category: string;
+  transactionType: TransactionType;
+  sum: number;
+  typeOperation: TransactionType;
+  
+  // Дополнительные поля для совместимости
+  amount?: number;
+  description?: string;
+  transactionDate?: string;
+  categoryId?: number;
+  type?: TransactionType;
 }
 
 const TRANSACTION_ENDPOINTS = {
@@ -149,18 +180,35 @@ class TransactionService {
     amount: number, 
     description: string, 
     categoryId: number, 
-    type: 'DEBIT' | 'CREDIT' = 'DEBIT'
+    type: TransactionType = 'DEBIT'
   ): Promise<Transaction> {
-    const transaction: Transaction = {
+    const transaction: Partial<Transaction> = {
+      sum: amount,
+      comment: description,
+      category: categoryId.toString(), // Преобразование ID в строку
+      transactionType: type,
+      typeOperation: type,
+      status: 'COMPLETED',
+      
+      // Минимальные обязательные поля согласно DTO
+      personType: 'INDIVIDUAL',
+      inn: '000000000000', // Заполнитель, должен быть заменен на реальный ИНН
+      personTypeRecipient: 'INDIVIDUAL',
+      innRecipient: '000000000000', // Заполнитель
+      nameBank: 'Банк отправителя', // Заполнитель
+      nameBankRecip: 'Банк получателя', // Заполнитель
+      billRecip: '00000000000000000000', // Заполнитель
+      rBillRecip: '00000000000000000000', // Заполнитель
+      
+      // Поля для совместимости
       amount,
       description,
       categoryId,
       type,
-      transactionDate: new Date().toISOString().split('T')[0],
-      status: 'COMPLETED'
+      transactionDate: new Date().toISOString().split('T')[0]
     };
     
-    return this.createTransaction(transaction);
+    return this.createTransaction(transaction as Transaction);
   }
 
   async updateTransaction(id: number, transaction: Transaction): Promise<Transaction> {

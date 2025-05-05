@@ -7,7 +7,6 @@ import {
   CardContent,
   Divider, 
   Button,
-  useTheme,
   CircularProgress,
   Skeleton,
   Stack,
@@ -33,6 +32,7 @@ import { fetchAllTransactions } from '../../store/slices/transactionsSlice';
 import { fetchAllCategories } from '../../store/slices/categoriesSlice';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { PieChart, Pie, Legend, Tooltip } from 'recharts';
+import { useCustomTheme } from '../../utils/theme';
 
 // Format number as currency
 const formatCurrency = (amount: number): string => {
@@ -56,7 +56,7 @@ const formatDate = (dateString: string): string => {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 const Dashboard: React.FC = () => {
-  const theme = useTheme();
+  const { mode } = useCustomTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   
@@ -65,6 +65,7 @@ const Dashboard: React.FC = () => {
   const { items: categories = [] } = useAppSelector(state => state.categories);
   
   useEffect(() => {
+    console.log('Dashboard: загрузка данных...');
     dispatch(fetchGeneralStatistics());
     dispatch(fetchLastMonthStatistics());
     dispatch(fetchAllTransactions());
@@ -72,6 +73,26 @@ const Dashboard: React.FC = () => {
   }, [dispatch]);
   
   const loading = statsLoading || transactionsLoading;
+  
+  // Отладочный вывод для проверки состояния статистики
+  useEffect(() => {
+    try {
+      console.log('Dashboard: обновлены данные статистики:', { general, lastMonth });
+    } catch (error) {
+      console.error('Ошибка при логировании данных статистики:', error);
+    }
+  }, [general, lastMonth]);
+  
+  // Обработка случая отсутствия данных
+  useEffect(() => {
+    if (!loading && !general) {
+      console.log('Dashboard: данные не загружены, пробуем загрузить снова...');
+      setTimeout(() => {
+        dispatch(fetchGeneralStatistics());
+        dispatch(fetchLastMonthStatistics());
+      }, 1000);
+    }
+  }, [dispatch, loading, general]);
   
   // Get 5 recent transactions
   const recentTransactions = transactions && Array.isArray(transactions)
@@ -101,29 +122,29 @@ const Dashboard: React.FC = () => {
       title: 'Общий баланс',
       value: general ? formatCurrency(general.balance) : '₽0',
       icon: <AccountBalance />,
-      color: theme.palette.primary.main,
-      bgColor: theme.palette.primary.light,
+      color: mode === 'dark' ? '#fff' : '#000',
+      bgColor: mode === 'dark' ? '#333' : '#f0f0f0',
     },
     {
       title: 'Доход',
       value: general ? formatCurrency(general.totalIncome) : '₽0',
       icon: <TrendingUp />,
-      color: theme.palette.success.main,
-      bgColor: theme.palette.success.light,
+      color: mode === 'dark' ? '#fff' : '#000',
+      bgColor: mode === 'dark' ? '#333' : '#f0f0f0',
     },
     {
       title: 'Расходы',
       value: general ? formatCurrency(general.totalExpenses) : '₽0',
       icon: <TrendingDown />,
-      color: theme.palette.error.main,
-      bgColor: theme.palette.error.light,
+      color: mode === 'dark' ? '#fff' : '#000',
+      bgColor: mode === 'dark' ? '#333' : '#f0f0f0',
     },
     {
       title: 'Транзакции',
       value: general ? general.transactionCount : 0,
       icon: <Receipt />,
-      color: theme.palette.info.main,
-      bgColor: theme.palette.info.light,
+      color: mode === 'dark' ? '#fff' : '#000',
+      bgColor: mode === 'dark' ? '#333' : '#f0f0f0',
     },
   ];
 
@@ -148,32 +169,35 @@ const Dashboard: React.FC = () => {
     animate: { 
       opacity: 1,
       transition: { 
-        staggerChildren: 0.1,
-        delayChildren: 0.2
+        staggerChildren: 0.05,
+        delayChildren: 0.1
       }
     }
   };
 
   const cardVariants = {
-    initial: { y: 20, opacity: 0 },
+    initial: { y: 10, opacity: 0 },
     animate: { 
       y: 0, 
       opacity: 1,
-      transition: { duration: 0.5, ease: "easeOut" }
+      transition: { duration: 0.3, ease: "easeOut" }
     },
     hover: { 
       y: -5,
-      boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
-      transition: { duration: 0.3 }
+      boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.1)",
+      transition: { duration: 0.2, ease: "easeOut" }
     }
   };
 
   const chartVariants = {
-    initial: { scale: 0.95, opacity: 0 },
+    initial: { opacity: 0 },
     animate: { 
-      scale: 1, 
       opacity: 1,
-      transition: { duration: 0.5 }
+      transition: { duration: 0.3 }
+    },
+    hover: {
+      y: -3,
+      transition: { duration: 0.2, ease: "easeOut" }
     }
   };
 
@@ -190,295 +214,321 @@ const Dashboard: React.FC = () => {
         Добро пожаловать! Вот краткий обзор ваших финансов
       </Typography>
       
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={containerVariants}
-      >
-        <Box>
-          {/* Summary Cards */}
-          <Stack direction="row" spacing={3} flexWrap="wrap" sx={{ mb: 4 }}>
-            {summaryCards.map((card, index) => (
-              <motion.div
-                key={index}
-                variants={cardVariants}
-                whileHover="hover"
-                style={{ flex: '1 1 200px' }}
-              >
-                <Paper
-                  elevation={3}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    background: `linear-gradient(145deg, ${card.bgColor}, ${theme.palette.background.paper})`,
-                    transition: 'all 0.3s ease',
-                  }}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={containerVariants}
+        >
+          <Box>
+            {/* Summary Cards */}
+            <Stack direction="row" spacing={3} flexWrap="wrap" sx={{ mb: 4 }}>
+              {summaryCards.map((card, index) => (
+                <motion.div
+                  key={index}
+                  variants={cardVariants}
+                  whileHover="hover"
+                  style={{ flex: '1 1 200px', minWidth: '200px' }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={2}>
-                    <Avatar
+                  <Paper
+                    elevation={2}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      height: '100%',
+                      bgcolor: mode === 'dark' ? 'background.paper' : 'background.default',
+                      border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Box
                       sx={{
-                        bgcolor: card.color,
-                        width: 50,
-                        height: 50,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mb: 2,
                       }}
                     >
-                      {card.icon}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">
+                      <Typography
+                        variant="subtitle1"
+                        color="text.secondary"
+                        sx={{ fontWeight: 500 }}
+                      >
                         {card.title}
                       </Typography>
-                      <Typography variant="h5" fontWeight="bold">
-                        {card.value}
-                      </Typography>
+                      <Avatar
+                        sx={{
+                          bgcolor: card.bgColor,
+                          color: card.color,
+                          width: 40,
+                          height: 40,
+                        }}
+                      >
+                        {card.icon}
+                      </Avatar>
                     </Box>
-                  </Stack>
-                </Paper>
-              </motion.div>
-            ))}
-          </Stack>
-          
-          {/* Charts Section */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
-            {/* Expense Overview */}
-            <motion.div variants={chartVariants}>
-              <Paper 
-                elevation={3} 
-                sx={{ 
-                  p: 3, 
-                  borderRadius: 3,
-                  height: '100%',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    boxShadow: theme => `0 8px 25px rgba(0,0,0,${theme.palette.mode === 'dark' ? 0.3 : 0.1})`,
-                  }
-                }}
+                    <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}>
+                      {card.value}
+                    </Typography>
+                  </Paper>
+                </motion.div>
+              ))}
+            </Stack>
+            
+            {/* Charts Section */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
+              {/* Expense Overview */}
+              <motion.div 
+                variants={chartVariants}
+                whileHover="hover"
+                style={{ width: '100%', height: '100%' }}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Обзор расходов
-                  </Typography>
-                  <motion.div whileHover={{ x: 3 }} whileTap={{ scale: 0.95 }}>
+                <Paper 
+                  elevation={2} 
+                  sx={{ 
+                    p: 3, 
+                    borderRadius: 3,
+                    height: '100%',
+                    border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Обзор расходов
+                    </Typography>
                     <Button 
                       variant="text" 
                       endIcon={<ArrowForward />}
                       onClick={() => navigate('/statistics')}
+                      sx={{
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateX(3px)'
+                        }
+                      }}
                     >
                       Показать все
                     </Button>
-                  </motion.div>
-                </Box>
-                
-                <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {expenseCategories && expenseCategories.length > 0 ? (
-                    <Box sx={{ width: '100%', height: '100%' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={expenseCategories}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={renderCustomizedLabel}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="amount"
-                          >
-                            {expenseCategories.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value: number) => [`₽${value}`, 'Сумма']}
-                            labelFormatter={(name) => `Категория: ${name}`}
-                          />
-                          <Legend 
-                            layout="vertical" 
-                            verticalAlign="middle" 
-                            align="right"
-                            formatter={(value, entry, index) => {
-                              const { payload } = entry as any;
-                              return (
-                                <Typography variant="body2" sx={{ color: COLORS[index % COLORS.length] }}>
-                                  {payload.categoryName}
-                                </Typography>
-                              );
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  ) : (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.5 }}
-                    >
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <TrendingDown sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-                        <Typography variant="body1" color="text.secondary">
-                          Нет данных о расходах
-                        </Typography>
+                  </Box>
+                  
+                  <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {expenseCategories && expenseCategories.length > 0 ? (
+                      <Box sx={{ width: '100%', height: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={expenseCategories}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={renderCustomizedLabel}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="amount"
+                            >
+                              {expenseCategories.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`₽${value}`, 'Сумма']}
+                              labelFormatter={(name) => `Категория: ${name}`}
+                            />
+                            <Legend 
+                              layout="vertical" 
+                              verticalAlign="middle" 
+                              align="right"
+                              formatter={(value, entry, index) => {
+                                const { payload } = entry as any;
+                                return (
+                                  <Typography variant="body2" sx={{ color: COLORS[index % COLORS.length] }}>
+                                    {payload.categoryName}
+                                  </Typography>
+                                );
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
                       </Box>
-                    </motion.div>
-                  )}
-                </Box>
-              </Paper>
-            </motion.div>
-            
-            {/* Recent Transactions */}
-            <motion.div variants={chartVariants}>
-              <Paper 
-                elevation={3} 
-                sx={{ 
-                  p: 3, 
-                  borderRadius: 3,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    boxShadow: theme => `0 8px 25px rgba(0,0,0,${theme.palette.mode === 'dark' ? 0.3 : 0.1})`,
-                  }
-                }}
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                      >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <TrendingDown sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+                          <Typography variant="body1" color="text.secondary">
+                            Нет данных о расходах
+                          </Typography>
+                        </Box>
+                      </motion.div>
+                    )}
+                  </Box>
+                </Paper>
+              </motion.div>
+              
+              {/* Recent Transactions */}
+              <motion.div 
+                variants={chartVariants}
+                whileHover="hover"
+                style={{ width: '100%', height: '100%' }}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Последние транзакции
-                  </Typography>
-                  <motion.div whileHover={{ x: 3 }} whileTap={{ scale: 0.95 }}>
+                <Paper 
+                  elevation={2} 
+                  sx={{ 
+                    p: 3, 
+                    borderRadius: 3,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Последние транзакции
+                    </Typography>
                     <Button 
                       variant="text" 
                       endIcon={<ArrowForward />}
                       onClick={() => navigate('/transactions')}
+                      sx={{
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          transform: 'translateX(3px)'
+                        }
+                      }}
                     >
                       Показать все
                     </Button>
-                  </motion.div>
-                </Box>
-                
-                <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-                  {recentTransactions && recentTransactions.length > 0 ? (
-                    <List sx={{ p: 0 }}>
-                      {recentTransactions.map((transaction, index) => {
-                        const category = categories && Array.isArray(categories) 
-                          ? categories.find(c => c.id === transaction.categoryId)
-                          : null;
-                        return (
-                          <motion.div
-                            key={transaction.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <ListItem 
-                              sx={{ 
-                                px: 2, 
-                                py: 1.5,
-                                borderRadius: 2,
-                                mb: 1,
-                                '&:hover': {
-                                  bgcolor: 'action.hover',
-                                }
-                              }}
-                              onClick={() => navigate(`/transactions/${transaction.id}`)}
-                              component={motion.div}
-                              whileHover={{ x: 5 }}
-                              whileTap={{ scale: 0.98 }}
+                  </Box>
+                  
+                  <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                    {recentTransactions && recentTransactions.length > 0 ? (
+                      <List sx={{ p: 0 }}>
+                        {recentTransactions.map((transaction, index) => {
+                          const category = categories && Array.isArray(categories) 
+                            ? categories.find(c => c.id === transaction.categoryId)
+                            : null;
+                          return (
+                            <motion.div
+                              key={transaction.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
                             >
-                              <ListItemAvatar>
-                                <Avatar 
-                                  sx={{ 
-                                    bgcolor: transaction.type === 'DEBIT' ? 'error.light' : 'success.light',
-                                    color: 'white'
-                                  }}
-                                >
-                                  {transaction.type === 'DEBIT' ? 
-                                    <TrendingDown /> : 
-                                    <TrendingUp />
+                              <ListItem 
+                                sx={{ 
+                                  px: 2, 
+                                  py: 1.5,
+                                  borderRadius: 2,
+                                  mb: 1,
+                                  transition: 'all 0.2s ease',
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    bgcolor: 'action.hover',
+                                    transform: 'translateX(5px)'
                                   }
-                                </Avatar>
-                              </ListItemAvatar>
-                              <ListItemText
-                                primary={
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Typography variant="body1" fontWeight={500}>
-                                      {transaction.description}
-                                    </Typography>
-                                    <Typography 
-                                      variant="body1" 
-                                      fontWeight={600}
-                                      color={transaction.type === 'DEBIT' ? 'error.main' : 'success.main'}
-                                    >
-                                      {transaction.type === 'DEBIT' ? '-' : '+'}
-                                      {formatCurrency(transaction.amount)}
-                                    </Typography>
-                                  </Box>
-                                }
-                                secondary={
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {category?.name || 'Без категории'}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {formatDate(transaction.transactionDate)}
-                                    </Typography>
-                                  </Box>
-                                }
-                              />
-                            </ListItem>
-                          </motion.div>
-                        );
-                      })}
-                    </List>
-                  ) : (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.5 }}
-                    >
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
-                        <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-                        <Typography variant="body1" color="text.secondary">
-                          Нет последних транзакций
-                        </Typography>
-                      </Box>
-                    </motion.div>
-                  )}
-                </Box>
-                
-                {transactions.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <motion.div 
-                      whileHover={{ scale: 1.03 }} 
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Button 
-                        variant="contained" 
-                        fullWidth 
+                                }}
+                                onClick={() => navigate(`/transactions/${transaction.id}`)}
+                                component="div"
+                              >
+                                <ListItemAvatar>
+                                  <Avatar 
+                                    sx={{ 
+                                      bgcolor: transaction.type === 'DEBIT' ? 'error.light' : 'success.light',
+                                      color: 'white'
+                                    }}
+                                  >
+                                    {transaction.type === 'DEBIT' ? 
+                                      <TrendingDown /> : 
+                                      <TrendingUp />
+                                    }
+                                  </Avatar>
+                                </ListItemAvatar>
+                                <ListItemText
+                                  primary={
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Typography variant="body1" fontWeight={500}>
+                                        {transaction.description}
+                                      </Typography>
+                                      <Typography 
+                                        variant="body1" 
+                                        fontWeight={600}
+                                        color={transaction.type === 'DEBIT' ? 'error.main' : 'success.main'}
+                                      >
+                                        {transaction.type === 'DEBIT' ? '-' : '+'}
+                                        {formatCurrency(transaction.amount)}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {category?.name || 'Без категории'}
+                                      </Typography>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {formatDate(transaction.transactionDate)}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                />
+                              </ListItem>
+                            </motion.div>
+                          );
+                        })}
+                      </List>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                      >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
+                          <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+                          <Typography variant="body1" color="text.secondary">
+                            Нет последних транзакций
+                          </Typography>
+                        </Box>
+                      </motion.div>
+                    )}
+                  </Box>
+                  
+                  {transactions.length > 0 && (
+                    <Box>
+                      <Button
+                        variant="outlined"
+                        startIcon={<Add />}
                         onClick={() => navigate('/transactions/new')}
-                        sx={{ 
-                          borderRadius: 3, 
-                          py: 1.5,
-                          background: 'linear-gradient(90deg, #2196F3 0%, #21CBF3 100%)',
-                          boxShadow: '0 4px 15px rgba(33, 150, 243, 0.3)',
+                        fullWidth
+                        sx={{
+                          mt: 1.5,
+                          py: 1,
+                          transition: 'all 0.15s ease',
+                          borderRadius: 2,
                           '&:hover': {
-                            background: 'linear-gradient(90deg, #1976D2 0%, #00B0FF 100%)',
-                            boxShadow: '0 6px 20px rgba(33, 150, 243, 0.5)'
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
                           }
                         }}
-                        startIcon={<Add />}
                       >
-                        Добавить новую транзакцию
+                        Добавить транзакцию
                       </Button>
-                    </motion.div>
-                  </Box>
-                )}
-              </Paper>
-            </motion.div>
+                    </Box>
+                  )}
+                </Paper>
+              </motion.div>
+            </Box>
           </Box>
-        </Box>
-      </motion.div>
+        </motion.div>
+      )}
     </Box>
   );
 };

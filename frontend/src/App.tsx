@@ -18,6 +18,8 @@ import TransactionFormPage from './pages/TransactionFormPage';
 import CategoriesPage from './pages/CategoriesPage';
 import CategoryFormPage from './pages/CategoryFormPage';
 import StatisticsPage from './pages/StatisticsPage';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 
 // Components
 import Layout from './components/common/Layout';
@@ -57,6 +59,10 @@ const App = React.memo(() => {
 
                   {/* Statistics Route */}
                   <Route path="/statistics" element={<StatisticsPage />} />
+                  
+                  {/* Profile and Settings Routes */}
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                 </Route>
               </Route>
 

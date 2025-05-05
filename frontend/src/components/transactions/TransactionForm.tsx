@@ -44,18 +44,43 @@ import {
 import { 
   fetchAllCategories
 } from '../../store/slices/categoriesSlice';
-import { Transaction } from '../../services/transactionService';
+import { 
+  Transaction, 
+  TransactionStatus, 
+  TransactionType,
+  PersonType 
+} from '../../services/transactionService';
 
-const initialFormState: Transaction = {
+const initialFormState: Partial<Transaction> = {
+  sum: 0,
+  comment: '',
+  transactionDate: new Date().toISOString().split('T')[0],
+  category: '',
+  transactionType: 'DEBIT',
+  typeOperation: 'DEBIT',
+  status: 'COMPLETED',
+  personType: 'INDIVIDUAL',
+  inn: '000000000000', // Дефолтное значение для физлица
+  personTypeRecipient: 'INDIVIDUAL',
+  innRecipient: '000000000000', // Дефолтное значение для физлица
+  nameBank: 'Сбербанк', // Дефолтное значение
+  nameBankRecip: 'Сбербанк', // Дефолтное значение
+  billRecip: '40000000000000000000', // Дефолтное значение
+  rBillRecip: '40000000000000000000', // Дефолтное значение
+  bill: '',
+  rBill: '',
+  name: '',
+  nameRecipient: '',
+  address: '',
+  addressRecipient: '',
+  phone: '',
+  recipientPhoneRecipient: '',
+  
+  // Для совместимости со старым кодом
   amount: 0,
   description: '',
-  transactionDate: new Date().toISOString().split('T')[0],
   categoryId: 0,
-  type: 'DEBIT',
-  status: 'COMPLETED',
-  recipientName: '',
-  recipientInn: '',
-  recipientBank: '',
+  type: 'DEBIT'
 };
 
 interface FormValues {
@@ -72,12 +97,30 @@ interface FormValues {
 }
 
 interface FormErrors {
+  sum?: string;
+  comment?: string;
+  transactionDate?: string;
+  category?: string;
+  inn?: string;
+  innRecipient?: string;
+  nameBank?: string;
+  nameBankRecip?: string;
+  billRecip?: string;
+  rBillRecip?: string;
+  status?: string;
+  transactionType?: string;
+  
+  // Для совместимости со старым кодом
   amount?: string;
   description?: string;
-  transactionDate?: string;
   categoryId?: string;
-  status?: string;
   type?: string;
+  phone?: string;
+  recipientPhoneRecipient?: string;
+  
+  // Дополнительные поля для валидации
+  bill?: string;
+  rBill?: string;
 }
 
 const TransactionForm: React.FC = () => {
@@ -90,31 +133,39 @@ const TransactionForm: React.FC = () => {
   const { selectedTransaction, loading, error } = useAppSelector(state => state.transactions);
   const { items: categories, loading: categoriesLoading } = useAppSelector(state => state.categories);
   
-  const [formData, setFormData] = useState<Transaction>(initialFormState);
+  const [formData, setFormData] = useState<Transaction>(initialFormState as Transaction);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [date, setDate] = useState<Date | null>(new Date());
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   
   // Fetch data
   useEffect(() => {
     dispatch(fetchAllCategories());
     
     if (isEditing && id) {
-      dispatch(fetchTransactionById(Number(id)));
+      dispatch(fetchTransactionById(Number(id))).then(() => {
+        if (selectedTransaction) {
+          const fullTransaction = {
+            ...initialFormState,
+            ...selectedTransaction
+          };
+          setFormData(fullTransaction);
+          // Безопасно устанавливаем дату, убедившись, что это валидная строка
+          if (fullTransaction.transactionDate && typeof fullTransaction.transactionDate === 'string') {
+            const dateValue = new Date(fullTransaction.transactionDate);
+            if (!isNaN(dateValue.getTime())) {
+              setDate(dateValue);
+            }
+          }
+        }
+      });
     }
     
     return () => {
       dispatch(clearSelectedTransaction());
     };
-  }, [dispatch, isEditing, id]);
-  
-  // Set form data when editing
-  useEffect(() => {
-    if (isEditing && selectedTransaction) {
-      setFormData(selectedTransaction);
-      setDate(new Date(selectedTransaction.transactionDate));
-    }
-  }, [isEditing, selectedTransaction]);
+  }, [dispatch, isEditing, id, selectedTransaction]);
   
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
@@ -141,18 +192,20 @@ const TransactionForm: React.FC = () => {
     setDate(newDate);
     if (newDate) {
       const formattedDate = newDate.toISOString().split('T')[0];
-      setFormData(prev => ({
-        ...prev,
-        transactionDate: formattedDate,
-      }));
+      handleChange({
+        target: {
+          name: 'transactionDate',
+          value: formattedDate,
+        }
+      } as React.ChangeEvent<HTMLInputElement>);
       
-      // Clear date error
-      if (formErrors.transactionDate) {
-        setFormErrors(prev => ({
-          ...prev,
-          transactionDate: undefined,
-        }));
-      }
+      // Обновляем для совместимости
+      handleChange({
+        target: {
+          name: 'date',
+          value: formattedDate,
+        }
+      } as React.ChangeEvent<HTMLInputElement>);
     }
   };
   
@@ -161,23 +214,103 @@ const TransactionForm: React.FC = () => {
     const errors: FormErrors = {};
     let isValid = true;
     
-    if (!formData.amount || formData.amount <= 0) {
-      errors.amount = 'Сумма должна быть больше 0';
+    // Проверка суммы
+    if (!formData.sum || formData.sum <= 0) {
+      errors.sum = 'Сумма должна быть больше 0';
+      errors.amount = 'Сумма должна быть больше 0'; // Для совместимости
       isValid = false;
     }
     
-    if (!formData.description.trim()) {
-      errors.description = 'Описание обязательно';
+    // Проверка на максимальную сумму (согласно @DecimalMax в DTO)
+    if (formData.sum > 999999.99999) {
+      errors.sum = 'Сумма не должна превышать 999,999.99999';
+      errors.amount = 'Сумма не должна превышать 999,999.99999'; // Для совместимости
       isValid = false;
     }
     
+    // Проверка комментария/описания
+    if (!formData.comment?.trim() && !formData.description?.trim()) {
+      errors.comment = 'Описание обязательно';
+      errors.description = 'Описание обязательно'; // Для совместимости
+      isValid = false;
+    }
+    
+    // Проверка даты
     if (!formData.transactionDate) {
       errors.transactionDate = 'Дата обязательна';
       isValid = false;
     }
     
-    if (!formData.categoryId) {
-      errors.categoryId = 'Категория обязательна';
+    // Проверка категории
+    if (!formData.category && !formData.categoryId) {
+      errors.category = 'Категория обязательна';
+      errors.categoryId = 'Категория обязательна'; // Для совместимости
+      isValid = false;
+    }
+    
+    // Проверка ИНН отправителя
+    if (!formData.inn || !/^\d{10}|\d{12}$/.test(formData.inn)) {
+      errors.inn = 'ИНН должен содержать 10 или 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка ИНН получателя
+    if (!formData.innRecipient || !/^\d{10}|\d{12}$/.test(formData.innRecipient)) {
+      errors.innRecipient = 'ИНН должен содержать 10 или 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка телефона отправителя, если он указан
+    if (formData.phone && !/^(\+7|8)\d{10}$/.test(formData.phone)) {
+      errors.phone = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
+      isValid = false;
+    }
+    
+    // Проверка телефона получателя, если он указан
+    if (formData.recipientPhoneRecipient && !/^(\+7|8)\d{10}$/.test(formData.recipientPhoneRecipient)) {
+      errors.recipientPhoneRecipient = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
+      isValid = false;
+    }
+    
+    // Проверка банка отправителя
+    if (!formData.nameBank?.trim()) {
+      errors.nameBank = 'Название банка обязательно';
+      isValid = false;
+    }
+    
+    // Проверка банка получателя
+    if (!formData.nameBankRecip?.trim()) {
+      errors.nameBankRecip = 'Название банка обязательно';
+      isValid = false;
+    }
+    
+    // Проверка счета получателя
+    if (!formData.billRecip?.trim()) {
+      errors.billRecip = 'Счет получателя обязателен';
+      isValid = false;
+    } else if (!/^\d{20}$/.test(formData.billRecip)) {
+      errors.billRecip = 'Счет должен содержать 20 цифр';
+      isValid = false;
+    }
+    
+    // Проверка расчетного счета получателя
+    if (!formData.rBillRecip?.trim()) {
+      errors.rBillRecip = 'Расчетный счет получателя обязателен';
+      isValid = false;
+    } else if (!/^\d{20}$/.test(formData.rBillRecip)) {
+      errors.rBillRecip = 'Расчетный счет должен содержать 20 цифр';
+      isValid = false;
+    }
+    
+    // Проверка типа транзакции
+    if (!formData.transactionType) {
+      errors.transactionType = 'Тип транзакции обязателен';
+      isValid = false;
+    }
+    
+    // Проверка статуса
+    if (!formData.status) {
+      errors.status = 'Статус обязателен';
       isValid = false;
     }
     
@@ -194,14 +327,45 @@ const TransactionForm: React.FC = () => {
     }
     
     try {
+      // Подготавливаем данные для отправки
+      const dataToSubmit = {
+        ...initialFormState, // Используем initialFormState как основу для дефолтных значений
+        ...formData,
+        // Устанавливаем числовое значение для суммы (если пришла строка)
+        sum: typeof formData.sum === 'string' ? parseFloat(formData.sum) : formData.sum,
+        amount: typeof formData.sum === 'string' ? parseFloat(formData.sum) : formData.sum,
+        // Синхронизируем старые и новые поля
+        comment: formData.comment || formData.description || '',
+        description: formData.description || formData.comment || '',
+        category: formData.category || (formData.categoryId ? formData.categoryId.toString() : '0'),
+        categoryId: formData.categoryId || (formData.category ? parseInt(formData.category) : 0),
+        transactionType: formData.transactionType || formData.type || 'DEBIT',
+        typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
+        type: formData.type || formData.transactionType || 'DEBIT',
+        // Гарантируем наличие обязательных полей DTO
+        personType: formData.personType || 'INDIVIDUAL',
+        inn: formData.inn || '000000000000',
+        personTypeRecipient: formData.personTypeRecipient || 'INDIVIDUAL', 
+        innRecipient: formData.innRecipient || '000000000000',
+        nameBank: formData.nameBank || 'Сбербанк',
+        nameBankRecip: formData.nameBankRecip || 'Сбербанк',
+        billRecip: formData.billRecip || '40000000000000000000',
+        rBillRecip: formData.rBillRecip || '40000000000000000000',
+        status: formData.status || 'COMPLETED',
+        // Устанавливаем правильную дату
+        transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Отправляем данные транзакции:', dataToSubmit);
+      
       if (isEditing && id) {
-        await dispatch(updateTransaction({ id: Number(id), data: formData })).unwrap();
+        await dispatch(updateTransaction({ id: Number(id), data: dataToSubmit })).unwrap();
         setSuccessMessage('Транзакция обновлена успешно');
       } else {
-        await dispatch(createTransaction(formData)).unwrap();
+        await dispatch(createTransaction(dataToSubmit)).unwrap();
         setSuccessMessage('Транзакция создана успешно');
         // Reset form for new transaction
-        setFormData(initialFormState);
+        setFormData(initialFormState as Transaction);
         setDate(new Date());
       }
       
@@ -211,6 +375,7 @@ const TransactionForm: React.FC = () => {
       }, 1500);
     } catch (err) {
       console.error('Ошибка сохранения транзакции:', err);
+      setErrorMessage('Ошибка сохранения транзакции');
     }
   };
   
@@ -342,13 +507,29 @@ const TransactionForm: React.FC = () => {
                 mb: 4
               }}>
                 <ToggleButtonGroup
-                  value={formData.type}
+                  value={formData.transactionType}
                   exclusive
                   onChange={(e, newValue) => {
                     if (newValue !== null) {
                       handleChange({
                         target: {
+                          name: 'transactionType',
+                          value: newValue
+                        }
+                      } as React.ChangeEvent<HTMLInputElement>);
+                      
+                      // Для совместимости обновляем также type
+                      handleChange({
+                        target: {
                           name: 'type',
+                          value: newValue
+                        }
+                      } as React.ChangeEvent<HTMLInputElement>);
+                      
+                      // Обновляем typeOperation, так как оно должно совпадать с transactionType
+                      handleChange({
+                        target: {
+                          name: 'typeOperation',
                           value: newValue
                         }
                       } as React.ChangeEvent<HTMLInputElement>);
@@ -413,18 +594,27 @@ const TransactionForm: React.FC = () => {
                 </FormLabel>
                 <TextField
                   id="transaction-amount"
-                  name="amount"
+                  name="sum"
                   type="number"
-                  value={formData.amount}
-                  onChange={handleChange}
+                  value={formData.sum}
+                  onChange={(e) => {
+                    handleChange(e);
+                    // Для совместимости обновляем также amount
+                    handleChange({
+                      target: {
+                        name: 'amount',
+                        value: e.target.value
+                      }
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }}
                   placeholder="0.00"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">₽</InputAdornment>
                     ),
                   }}
-                  error={!!formErrors.amount}
-                  helperText={formErrors.amount}
+                  error={!!formErrors.sum}
+                  helperText={formErrors.sum}
                 />
               </FormControl>
             </motion.div>
@@ -444,14 +634,500 @@ const TransactionForm: React.FC = () => {
                 </FormLabel>
                 <TextField
                   id="transaction-description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
+                  name="comment"
+                  value={formData.comment}
+                  onChange={(e) => {
+                    handleChange(e);
+                    // Для совместимости обновляем также description
+                    handleChange({
+                      target: {
+                        name: 'description',
+                        value: e.target.value
+                      }
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }}
                   placeholder="Описание транзакции"
                   multiline
                   rows={3}
-                  error={!!formErrors.description}
-                  helperText={formErrors.description}
+                  error={!!formErrors.comment}
+                  helperText={formErrors.comment}
+                />
+              </FormControl>
+            </motion.div>
+            
+            {/* ИНФОРМАЦИЯ ОТПРАВИТЕЛЕ */}
+            <Typography variant="h6" sx={{ my: 2, fontWeight: 600 }}>
+              Информация об отправителе
+            </Typography>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={5}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-person-type-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Тип отправителя
+                </FormLabel>
+                <Select
+                  id="transaction-person-type"
+                  name="personType"
+                  value={formData.personType}
+                  onChange={handleChange as any}
+                  displayEmpty
+                >
+                  <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
+                  <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                </Select>
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={6}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-name-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Имя отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-name"
+                  name="name"
+                  value={formData.name || ''}
+                  onChange={handleChange}
+                  placeholder={formData.personType === 'INDIVIDUAL' ? 'Иван Иванов' : 'ООО "Ромашка"'}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={7}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-inn-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  ИНН отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-inn"
+                  name="inn"
+                  value={formData.inn}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder={formData.personType === 'INDIVIDUAL' ? '123456789012' : '1234567890'}
+                  error={!!formErrors.inn}
+                  helperText={formErrors.inn || `ИНН должен содержать ${formData.personType === 'INDIVIDUAL' ? '12' : '10'} цифр (обязательное поле)`}
+                  inputProps={{
+                    maxLength: formData.personType === 'INDIVIDUAL' ? 12 : 10
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={8}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-address-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Адрес отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-address"
+                  name="address"
+                  value={formData.address || ''}
+                  onChange={handleChange}
+                  placeholder="г. Москва, ул. Примерная, д. 1"
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={9}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-phone-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Телефон отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-phone"
+                  name="phone"
+                  value={formData.phone || ''}
+                  onChange={(e) => {
+                    // Проверяем, что телефон начинается с +7 или 8 и содержит только цифры после
+                    const value = e.target.value;
+                    if (value === "" || value === "+7" || value === "8" || 
+                        (/^(\+7|8)\d*$/.test(value) && value.length <= 12)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="+71234567890"
+                  error={!!formErrors.phone}
+                  helperText={formErrors.phone || 'Формат: +7XXXXXXXXXX или 8XXXXXXXXXX'}
+                  inputProps={{
+                    maxLength: 12
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            {/* ИНФОРМАЦИЯ О ПОЛУЧАТЕЛЕ */}
+            <Typography variant="h6" sx={{ my: 2, fontWeight: 600 }}>
+              Информация о получателе
+            </Typography>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={10}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-type-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Тип получателя
+                </FormLabel>
+                <Select
+                  id="transaction-recipient-type"
+                  name="personTypeRecipient"
+                  value={formData.personTypeRecipient}
+                  onChange={handleChange as any}
+                  displayEmpty
+                >
+                  <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
+                  <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                </Select>
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={11}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-name-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Имя получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-recipient-name"
+                  name="nameRecipient"
+                  value={formData.nameRecipient || ''}
+                  onChange={handleChange}
+                  placeholder={formData.personTypeRecipient === 'INDIVIDUAL' ? 'Иван Иванов' : 'ООО "Ромашка"'}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={12}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-inn-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  ИНН получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-recipient-inn"
+                  name="innRecipient"
+                  value={formData.innRecipient}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder={formData.personTypeRecipient === 'INDIVIDUAL' ? '123456789012' : '1234567890'}
+                  error={!!formErrors.innRecipient}
+                  helperText={formErrors.innRecipient || `ИНН должен содержать ${formData.personTypeRecipient === 'INDIVIDUAL' ? '12' : '10'} цифр (обязательное поле)`}
+                  inputProps={{
+                    maxLength: formData.personTypeRecipient === 'INDIVIDUAL' ? 12 : 10
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={13}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-address-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Адрес получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-recipient-address"
+                  name="addressRecipient"
+                  value={formData.addressRecipient || ''}
+                  onChange={handleChange}
+                  placeholder="г. Москва, ул. Примерная, д. 1"
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={14}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-phone-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Телефон получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-recipient-phone"
+                  name="recipientPhoneRecipient"
+                  value={formData.recipientPhoneRecipient || ''}
+                  onChange={(e) => {
+                    // Проверяем, что телефон начинается с +7 или 8 и содержит только цифры после
+                    const value = e.target.value;
+                    if (value === "" || value === "+7" || value === "8" || 
+                        (/^(\+7|8)\d*$/.test(value) && value.length <= 12)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="+71234567890"
+                  error={!!formErrors.recipientPhoneRecipient}
+                  helperText={formErrors.recipientPhoneRecipient || 'Формат: +7XXXXXXXXXX или 8XXXXXXXXXX'}
+                  inputProps={{
+                    maxLength: 12
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            {/* ИНФОРМАЦИЯ О БАНКАХ */}
+            <Typography variant="h6" sx={{ my: 2, fontWeight: 600 }}>
+              Банковская информация
+            </Typography>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={15}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-bank-name-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Банк отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-bank-name"
+                  name="nameBank"
+                  value={formData.nameBank}
+                  onChange={handleChange}
+                  placeholder="Сбербанк"
+                  error={!!formErrors.nameBank}
+                  helperText={formErrors.nameBank}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={16}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-bill-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Основной счет отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-bill"
+                  name="bill"
+                  value={formData.bill || ''}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="40702810123450101230"
+                  error={!!formErrors.bill}
+                  helperText={formErrors.bill || 'Счет должен содержать 20 цифр'}
+                  inputProps={{
+                    maxLength: 20
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={17}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-rbill-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Расчетный счет отправителя
+                </FormLabel>
+                <TextField
+                  id="transaction-rbill"
+                  name="rBill"
+                  value={formData.rBill || ''}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="40702810123450101230"
+                  error={!!formErrors.rBill}
+                  helperText={formErrors.rBill || 'Счет должен содержать 20 цифр'}
+                  inputProps={{
+                    maxLength: 20
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={18}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-recipient-bank-name-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Банк получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-recipient-bank-name"
+                  name="nameBankRecip"
+                  value={formData.nameBankRecip}
+                  onChange={handleChange}
+                  placeholder="Альфа-Банк"
+                  error={!!formErrors.nameBankRecip}
+                  helperText={formErrors.nameBankRecip}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={19}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-bill-recip-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Основной счет получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-bill-recip"
+                  name="billRecip"
+                  value={formData.billRecip}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="40702810123450101230"
+                  error={!!formErrors.billRecip}
+                  helperText={formErrors.billRecip || 'Счет должен содержать 20 цифр (обязательное поле)'}
+                  inputProps={{
+                    maxLength: 20
+                  }}
+                />
+              </FormControl>
+            </motion.div>
+            
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={20}
+            >
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <FormLabel
+                  id="transaction-rbill-recip-label"
+                  sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}
+                >
+                  Расчетный счет получателя
+                </FormLabel>
+                <TextField
+                  id="transaction-rbill-recip"
+                  name="rBillRecip"
+                  value={formData.rBillRecip}
+                  onChange={(e) => {
+                    // Проверяем, что введены только цифры
+                    if (/^\d*$/.test(e.target.value)) {
+                      handleChange(e);
+                    }
+                  }}
+                  placeholder="40702810123450101230"
+                  error={!!formErrors.rBillRecip}
+                  helperText={formErrors.rBillRecip || 'Счет должен содержать 20 цифр (обязательное поле)'}
+                  inputProps={{
+                    maxLength: 20
+                  }}
                 />
               </FormControl>
             </motion.div>
@@ -500,32 +1176,50 @@ const TransactionForm: React.FC = () => {
                 </FormLabel>
                 <Select
                   id="transaction-category"
-                  name="categoryId"
-                  value={formData.categoryId || ''}
-                  onChange={handleChange as any}
+                  name="category"
+                  value={formData.category || ''}
+                  onChange={(e) => {
+                    // Явно типизируем e как React.ChangeEvent с нужной структурой
+                    const event = {
+                      target: {
+                        name: 'category',
+                        value: e.target.value
+                      }
+                    } as unknown as React.ChangeEvent<HTMLInputElement>;
+                    handleChange(event);
+                    
+                    // Для совместимости обновляем также categoryId
+                    const categoryIdEvent = {
+                      target: {
+                        name: 'categoryId',
+                        value: parseInt(e.target.value as string) || 0
+                      }
+                    } as unknown as React.ChangeEvent<HTMLInputElement>;
+                    handleChange(categoryIdEvent);
+                  }}
                   displayEmpty
                   renderValue={(selected) => {
                     if (!selected) {
                       return <Typography color="text.secondary">Выберите категорию</Typography>;
                     }
-                    const category = categories.find((cat) => cat.id === selected);
+                    const category = categories.find((cat) => cat.id && cat.id.toString() === selected);
                     return category ? category.name : 'Без категории';
                   }}
-                  error={!!formErrors.categoryId}
+                  error={!!formErrors.category}
                 >
                   <MenuItem value="">
                     <em>Без категории</em>
                   </MenuItem>
                   {categories
-                    .filter((category) => category.type === formData.type)
+                    .filter((category) => category.type === formData.transactionType)
                     .map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
+                      <MenuItem key={category.id || 0} value={category.id ? category.id.toString() : '0'}>
                         {category.name}
                       </MenuItem>
                     ))}
                 </Select>
-                {formErrors.categoryId && (
-                  <FormHelperText error>{formErrors.categoryId}</FormHelperText>
+                {formErrors.category && (
+                  <FormHelperText error>{formErrors.category}</FormHelperText>
                 )}
               </FormControl>
             </motion.div>
@@ -534,7 +1228,7 @@ const TransactionForm: React.FC = () => {
               initial="initial"
               animate="animate"
               variants={formControlVariants}
-              custom={5}
+              custom={21}
             >
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <FormLabel
@@ -546,14 +1240,24 @@ const TransactionForm: React.FC = () => {
                 <Select
                   id="transaction-status"
                   name="status"
-                  value={formData.status}
-                  onChange={handleChange as any}
+                  value={formData.status || 'COMPLETED'}
+                  onChange={(e) => {
+                    // Явно типизируем e как React.ChangeEvent с нужной структурой
+                    const event = {
+                      target: {
+                        name: 'status',
+                        value: e.target.value
+                      }
+                    } as unknown as React.ChangeEvent<HTMLInputElement>;
+                    handleChange(event);
+                  }}
                   displayEmpty
                   error={!!formErrors.status}
                 >
                   <MenuItem value="COMPLETED">Завершено</MenuItem>
                   <MenuItem value="PENDING">В ожидании</MenuItem>
                   <MenuItem value="CANCELLED">Отменено</MenuItem>
+                  <MenuItem value="FAILED">Ошибка</MenuItem>
                 </Select>
                 {formErrors.status && (
                   <FormHelperText error>{formErrors.status}</FormHelperText>

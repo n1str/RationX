@@ -214,14 +214,14 @@ const Layout: React.FC = () => {
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
               </ListItemIcon>
-              My Profile
+              Мой профиль
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              Logout
+              Выход
             </MenuItem>
           </Menu>
         </Toolbar>

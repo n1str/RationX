@@ -27,6 +27,25 @@ export interface PeriodStatistics {
   transactionCount: number;
 }
 
+// Заглушки данных на случай проблем с API
+const FALLBACK_GENERAL_STATISTICS: GeneralStatistics = {
+  totalIncome: 0,
+  totalExpenses: 0,
+  balance: 0,
+  transactionCount: 0,
+  averageTransaction: 0,
+  largestIncome: 0,
+  largestExpense: 0
+};
+
+const FALLBACK_PERIOD_STATISTICS: PeriodStatistics = {
+  period: new Date().toISOString(),
+  income: 0,
+  expenses: 0,
+  balance: 0,
+  transactionCount: 0
+};
+
 const STATISTICS_ENDPOINTS = {
   GENERAL: '/api/statistics',
   BY_CATEGORY: '/api/statistics/by-category',
@@ -39,11 +58,14 @@ const STATISTICS_ENDPOINTS = {
 class StatisticsService {
   async getGeneralStatistics(): Promise<GeneralStatistics> {
     try {
+      console.log('StatisticsService: запрос общей статистики...');
       const response = await api.get(STATISTICS_ENDPOINTS.GENERAL);
+      console.log('StatisticsService: получена общая статистика:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch general statistics:', error);
-      throw error;
+      console.log('StatisticsService: возвращаем заглушку вместо данных с сервера');
+      return FALLBACK_GENERAL_STATISTICS;
     }
   }
 
@@ -53,7 +75,7 @@ class StatisticsService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch statistics by category:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -67,7 +89,7 @@ class StatisticsService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch statistics by period:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -77,7 +99,7 @@ class StatisticsService {
       return response.data;
     } catch (error) {
       console.error(`Failed to fetch statistics for ${type}:`, error);
-      throw error;
+      return {};
     }
   }
 
@@ -87,7 +109,7 @@ class StatisticsService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch last month statistics:', error);
-      throw error;
+      return FALLBACK_PERIOD_STATISTICS;
     }
   }
 
@@ -97,7 +119,7 @@ class StatisticsService {
       return response.data;
     } catch (error) {
       console.error('Failed to fetch last year statistics:', error);
-      throw error;
+      return [FALLBACK_PERIOD_STATISTICS];
     }
   }
 }

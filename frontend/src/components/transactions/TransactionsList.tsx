@@ -46,7 +46,7 @@ import {
 } from '../../store/slices/transactionsSlice';
 import { fetchAllCategories } from '../../store/slices/categoriesSlice';
 import { Transaction } from '../../services/transactionService';
-import TransactionsFilter from '../../components/transactions/TransactionsFilter';
+import TransactionsFilter from './TransactionsFilter';
 
 // Определение типа для фильтров транзакций
 interface TransactionFilters {

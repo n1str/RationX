@@ -21,7 +21,12 @@ import {
   ToggleButton,
   useTheme,
   Chip,
-  Divider
+  Divider,
+  SelectChangeEvent,
+  Tabs,
+  Tab,
+  Paper,
+  Tooltip
 } from '@mui/material';
 import {
   Close,
@@ -49,27 +54,53 @@ import {
   fetchAllCategories,
   fetchCategoriesByType
 } from '../../store/slices/categoriesSlice';
-import { Transaction } from '../../services/transactionService';
+import { Transaction, TransactionStatus, TransactionType, PersonType } from '../../services/transactionService';
 import { Category } from '../../services/categoryService';
 
-const initialFormState: Transaction = {
+const initialFormState: Partial<Transaction> = {
+  sum: 0,
+  comment: '',
+  transactionDate: new Date().toISOString().split('T')[0],
+  category: '',
+  transactionType: 'DEBIT',
+  typeOperation: 'DEBIT',
+  status: 'COMPLETED',
+  personType: 'INDIVIDUAL',
+  inn: '000000000000', // Дефолтное значение для физлица
+  personTypeRecipient: 'INDIVIDUAL',
+  innRecipient: '000000000000', // Дефолтное значение для физлица
+  nameBank: 'Сбербанк', // Дефолтное значение
+  nameBankRecip: 'Сбербанк', // Дефолтное значение
+  billRecip: '40000000000000000000', // Дефолтное значение
+  rBillRecip: '40000000000000000000', // Дефолтное значение
+  
+  // Для совместимости со старым кодом
   amount: 0,
   description: '',
-  transactionDate: new Date().toISOString().split('T')[0],
   categoryId: 0,
-  type: 'DEBIT',
-  status: 'COMPLETED',
-  recipientName: '',
-  recipientInn: '',
-  recipientBank: '',
+  type: 'DEBIT'
 };
 
 interface FormErrors {
+  sum?: string;
+  comment?: string;
+  transactionDate?: string;
+  category?: string;
+  inn?: string;
+  innRecipient?: string;
+  nameBank?: string;
+  nameBankRecip?: string;
+  billRecip?: string;
+  rBillRecip?: string;
+  status?: string;
+  transactionType?: string;
+  phone?: string;
+  recipientPhoneRecipient?: string;
+  
+  // Для совместимости со старым кодом
   amount?: string;
   description?: string;
-  transactionDate?: string;
   categoryId?: string;
-  status?: string;
   type?: string;
 }
 
@@ -85,10 +116,16 @@ const TransactionFormModal: React.FC = () => {
   const { items: categories, loading: categoriesLoading } = useAppSelector(state => state.categories);
   
   const [open, setOpen] = useState(true);
-  const [formData, setFormData] = useState<Transaction>(initialFormState);
+  const [formData, setFormData] = useState<Transaction>(initialFormState as Transaction);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [date, setDate] = useState<Date | null>(new Date());
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  
+  // Функция для смены вкладки
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
   
   // Фильтруем категории по типу транзакции
   const filteredCategories = Array.isArray(categories) 
@@ -162,8 +199,22 @@ const TransactionFormModal: React.FC = () => {
   // Set form data when editing
   useEffect(() => {
     if (isEditing && selectedTransaction) {
-      setFormData(selectedTransaction);
-      setDate(new Date(selectedTransaction.transactionDate));
+      // Убедимся, что все обязательные поля DTO присутствуют
+      const completeTransaction = {
+        ...initialFormState,
+        ...selectedTransaction
+      };
+      setFormData(completeTransaction);
+      
+      // Корректная установка даты
+      if (completeTransaction.transactionDate && typeof completeTransaction.transactionDate === 'string') {
+        try {
+          setDate(new Date(completeTransaction.transactionDate));
+        } catch (e) {
+          console.error('Ошибка при установке даты:', e);
+          setDate(new Date());
+        }
+      }
     }
   }, [isEditing, selectedTransaction]);
   
@@ -187,6 +238,8 @@ const TransactionFormModal: React.FC = () => {
         setFormData(prev => ({
           ...prev,
           type: transactionType,
+          transactionType: transactionType,
+          typeOperation: transactionType,
           categoryId: 0 // Сбрасываем выбранную категорию при смене типа
         }));
       } else {
@@ -198,13 +251,25 @@ const TransactionFormModal: React.FC = () => {
     }
   };
   
+  // Handle change for selects
+  const handleSelectChange = (e: SelectChangeEvent<unknown>) => {
+    const { name, value } = e.target;
+    if (name) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+  
   // Handle date change
   const handleDateChange = (newDate: Date | null) => {
     if (newDate) {
       setDate(newDate);
+      const formattedDate = newDate.toISOString().split('T')[0];
       setFormData({
         ...formData,
-        transactionDate: newDate.toISOString().split('T')[0]
+        transactionDate: formattedDate
       });
     }
   };
@@ -214,23 +279,91 @@ const TransactionFormModal: React.FC = () => {
     const errors: FormErrors = {};
     let isValid = true;
     
-    if (!formData.amount || formData.amount <= 0) {
-      errors.amount = 'Сумма должна быть больше 0';
+    // Проверка суммы
+    if (!formData.sum || formData.sum <= 0) {
+      errors.sum = 'Сумма должна быть больше 0';
+      errors.amount = 'Сумма должна быть больше 0'; // Для совместимости
       isValid = false;
     }
     
-    if (!formData.description.trim()) {
-      errors.description = 'Описание обязательно';
+    // Проверка на максимальную сумму
+    if (formData.sum > 999999.99999) {
+      errors.sum = 'Сумма не должна превышать 999,999.99999';
+      errors.amount = 'Сумма не должна превышать 999,999.99999'; // Для совместимости
       isValid = false;
     }
     
+    // Проверка комментария/описания
+    if (!formData.comment?.trim() && !formData.description?.trim()) {
+      errors.comment = 'Описание обязательно';
+      errors.description = 'Описание обязательно'; // Для совместимости
+      isValid = false;
+    }
+    
+    // Проверка даты
     if (!formData.transactionDate) {
       errors.transactionDate = 'Дата обязательна';
       isValid = false;
     }
     
-    if (!formData.categoryId) {
-      errors.categoryId = 'Категория обязательна';
+    // Проверка категории
+    if (!formData.category && !formData.categoryId) {
+      errors.category = 'Категория обязательна';
+      errors.categoryId = 'Категория обязательна'; // Для совместимости
+      isValid = false;
+    }
+    
+    // Проверка ИНН отправителя (если указан)
+    if (formData.inn && !/^\d{10}|\d{12}$/.test(formData.inn)) {
+      errors.inn = 'ИНН должен содержать 10 или 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка ИНН получателя (если указан)
+    if (formData.innRecipient && !/^\d{10}|\d{12}$/.test(formData.innRecipient)) {
+      errors.innRecipient = 'ИНН должен содержать 10 или 12 цифр';
+      isValid = false;
+    }
+    
+    // Проверка телефона отправителя (если указан)
+    if (formData.phone && !/^(\+7|8)\d{10}$/.test(formData.phone)) {
+      errors.phone = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
+      isValid = false;
+    }
+    
+    // Проверка телефона получателя (если указан)
+    if (formData.recipientPhoneRecipient && !/^(\+7|8)\d{10}$/.test(formData.recipientPhoneRecipient)) {
+      errors.recipientPhoneRecipient = 'Телефон должен начинаться с +7 или 8 и содержать 11 цифр';
+      isValid = false;
+    }
+    
+    // Проверка банка отправителя
+    if (!formData.nameBank?.trim()) {
+      errors.nameBank = 'Название банка обязательно';
+      isValid = false;
+    }
+    
+    // Проверка банка получателя
+    if (!formData.nameBankRecip?.trim()) {
+      errors.nameBankRecip = 'Название банка обязательно';
+      isValid = false;
+    }
+    
+    // Проверка счета получателя
+    if (!formData.billRecip?.trim()) {
+      errors.billRecip = 'Счет получателя обязателен';
+      isValid = false;
+    } else if (!/^\d{20}$/.test(formData.billRecip)) {
+      errors.billRecip = 'Счет должен содержать 20 цифр';
+      isValid = false;
+    }
+    
+    // Проверка расчетного счета получателя
+    if (!formData.rBillRecip?.trim()) {
+      errors.rBillRecip = 'Расчетный счет получателя обязателен';
+      isValid = false;
+    } else if (!/^\d{20}$/.test(formData.rBillRecip)) {
+      errors.rBillRecip = 'Расчетный счет должен содержать 20 цифр';
       isValid = false;
     }
     
@@ -249,31 +382,74 @@ const TransactionFormModal: React.FC = () => {
     setIsSaving(true);
     
     try {
-      if (isEditing && id) {
-        await dispatch(updateTransaction({ id: Number(id), data: formData })).unwrap();
-      } else {
-        // Проверяем минимальный набор данных для создания транзакции
-        const { amount, description, categoryId, type, transactionDate, status } = formData;
-        if (amount > 0 && description && categoryId && type && transactionDate) {
-          // Используем минимально необходимый набор данных
-          const transactionData = {
-            amount,
-            description,
-            categoryId,
-            type,
-            transactionDate,
-            status: status || 'COMPLETED',
-          };
-          await dispatch(createTransaction(transactionData)).unwrap();
-        } else {
-          throw new Error('Отсутствуют необходимые данные для создания транзакции');
+      // Подготавливаем данные для отправки с обязательными полями DTO
+      const dataToSubmit: Partial<Transaction> = {
+        ...initialFormState, // Добавляем все дефолтные значения как основу
+        ...formData,
+        // Преобразуем сумму
+        sum: typeof formData.sum === 'string' ? parseFloat(formData.sum) : (formData.sum || 0),
+        amount: typeof formData.sum === 'string' ? parseFloat(formData.sum) : (formData.sum || 0),
+        // Синхронизируем старые и новые поля
+        comment: formData.comment || formData.description || '',
+        description: formData.description || formData.comment || '',
+        category: formData.category || (formData.categoryId ? formData.categoryId.toString() : '0'),
+        categoryId: formData.categoryId || (formData.category ? parseInt(formData.category) : 0),
+        transactionType: formData.transactionType || formData.type || 'DEBIT',
+        typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
+        type: formData.type || formData.transactionType || 'DEBIT',
+        status: 'COMPLETED', // Устанавливаем статус по умолчанию
+        // Гарантируем наличие обязательных полей DTO
+        personType: formData.personType || 'INDIVIDUAL',
+        inn: formData.inn || '000000000000',
+        personTypeRecipient: formData.personTypeRecipient || 'INDIVIDUAL', 
+        innRecipient: formData.innRecipient || '000000000000',
+        nameBank: formData.nameBank || 'Сбербанк',
+        nameBankRecip: formData.nameBankRecip || 'Сбербанк',
+        billRecip: formData.billRecip || '40000000000000000000',
+        rBillRecip: formData.rBillRecip || '40000000000000000000',
+        // Устанавливаем правильную дату
+        transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        phone: formData.phone || '',
+        recipientPhoneRecipient: formData.recipientPhoneRecipient || ''
+      };
+      
+      // Убедимся что все строковые поля не содержат контрольных символов или непарсящихся значений
+      Object.keys(dataToSubmit).forEach(key => {
+        const value = (dataToSubmit as any)[key];
+        if (typeof value === 'string') {
+          // Проверяем, что строка валидна для JSON
+          try {
+            JSON.parse(`{"${key}":"${value}"}`);
+          } catch (e) {
+            console.error(`JSON парсинг ошибка в поле ${key}:`, value, e);
+            // Экранируем специальные символы
+            (dataToSubmit as any)[key] = value.replace(/[\u0000-\u001F\u007F-\u009F\\"\n\r\t]/g, '');
+          }
         }
+      });
+      
+      // Логируем данные перед отправкой
+      console.log('Отправляем данные: ', dataToSubmit);
+      console.log('JSON строка: ', JSON.stringify(dataToSubmit));
+      
+      if (isEditing && id) {
+        await dispatch(updateTransaction({ id: Number(id), data: dataToSubmit as Transaction })).unwrap();
+      } else {
+        await dispatch(createTransaction(dataToSubmit as Transaction)).unwrap();
       }
+      
+      // Обновляем список транзакций
+      dispatch(fetchAllTransactions());
       
       // Сразу перенаправляем на страницу транзакций
       handleClose();
     } catch (err) {
       console.error('Ошибка сохранения транзакции:', err);
+      if (err instanceof Error) {
+        alert(`Ошибка: ${err.message}`);
+      } else {
+        alert('Возникла ошибка при сохранении транзакции');
+      }
       setIsSaving(false);
     }
   };
@@ -290,7 +466,7 @@ const TransactionFormModal: React.FC = () => {
     <Dialog 
       open={open} 
       onClose={isSaving ? undefined : handleClose}
-      maxWidth="sm" 
+      maxWidth="lg" 
       fullWidth
       disableEscapeKeyDown={isSaving}
       PaperProps={{
@@ -325,7 +501,7 @@ const TransactionFormModal: React.FC = () => {
             <IconButton 
               edge="end" 
               color="inherit" 
-              onClick={handleClose}
+              onClick={isSaving ? undefined : handleClose}
               size="small"
             >
               <Close />
@@ -337,27 +513,31 @@ const TransactionFormModal: React.FC = () => {
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <Box sx={{
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
               mb: 3,
-              mt: 1
+              mt: 1,
+              gap: 2
             }}>
               <ToggleButtonGroup
-                value={formData.type}
+                value={formData.transactionType || formData.type}
                 exclusive
                 onChange={(e, newValue) => {
                   if (newValue !== null) {
-                    handleChange({
-                      target: {
-                        name: 'type',
-                        value: newValue
-                      }
-                    } as React.ChangeEvent<HTMLInputElement>);
+                    const transactionType = newValue as TransactionType;
+                    setFormData(prev => ({
+                      ...prev,
+                      type: transactionType,
+                      transactionType: transactionType,
+                      typeOperation: transactionType,
+                      categoryId: 0 // Сбрасываем выбранную категорию при смене типа
+                    }));
                   }
                 }}
                 color="primary"
-                fullWidth
                 size="medium"
-                sx={{ maxWidth: 350 }}
+                sx={{ minWidth: 250 }}
                 disabled={isSaving}
               >
                 <ToggleButton 
@@ -389,188 +569,447 @@ const TransactionFormModal: React.FC = () => {
                   Расход
                 </ToggleButton>
               </ToggleButtonGroup>
+              
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                disabled={isSaving}
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    status: 'COMPLETED'
+                  }));
+                  // Автоматически отправляем форму
+                  handleSubmit({ preventDefault: () => {} } as React.FormEvent<HTMLFormElement>);
+                }}
+                sx={{ 
+                  minWidth: 180,
+                  height: '48px',
+                  py: 1,
+                  bgcolor: '#FFCA28', // Желтый цвет
+                  color: '#000000',
+                  '&:hover': {
+                    bgcolor: '#FFB300'
+                  },
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+                }}
+              >
+                Провести
+              </Button>
             </Box>
             
-            <Stack spacing={2.5}>
-              <FormControl fullWidth>
-                <TextField
-                  id="transaction-amount"
-                  name="amount"
-                  type="number"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  placeholder="0"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">₽</InputAdornment>
-                    ),
-                  }}
-                  error={!!formErrors.amount}
-                  helperText={formErrors.amount}
-                  label="Сумма"
-                  size="medium"
-                  variant="outlined"
-                  disabled={isSaving}
-                />
-              </FormControl>
-
-              <FormControl fullWidth>
-                <TextField
-                  id="transaction-description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Описание транзакции"
-                  multiline
-                  rows={2}
-                  error={!!formErrors.description}
-                  helperText={formErrors.description}
-                  label="Описание"
-                  size="medium"
-                  variant="outlined"
-                  disabled={isSaving}
-                />
-              </FormControl>
-
-              <FormControl fullWidth>
-                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
-                  <DatePicker
-                    label="Дата транзакции"
-                    value={date}
-                    onChange={handleDateChange}
-                    disabled={isSaving}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        error: !!formErrors.transactionDate,
-                        helperText: formErrors.transactionDate,
-                        size: "medium",
-                        variant: "outlined"
-                      },
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+              <Tabs value={activeTab} onChange={handleTabChange} variant="fullWidth">
+                <Tab label="Основная информация" />
+                <Tab label="Реквизиты" />
+              </Tabs>
+            </Box>
+            
+            {activeTab === 0 && (
+              <Stack spacing={2.5}>
+                <FormControl fullWidth>
+                  <TextField
+                    id="transaction-amount"
+                    name="amount"
+                    type="number"
+                    value={formData.sum || formData.amount || 0}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      setFormData(prev => ({
+                        ...prev,
+                        amount: value,
+                        sum: value
+                      }));
                     }}
+                    placeholder="0"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">₽</InputAdornment>
+                      ),
+                    }}
+                    error={!!formErrors.sum || !!formErrors.amount}
+                    helperText={formErrors.sum || formErrors.amount}
+                    label="Сумма"
+                    size="medium"
+                    variant="outlined"
+                    disabled={isSaving}
                   />
-                </LocalizationProvider>
-              </FormControl>
+                </FormControl>
 
-              <FormControl fullWidth error={!!formErrors.categoryId}>
-                <InputLabel id="transaction-category-label">Категория</InputLabel>
-                <Select
-                  labelId="transaction-category-label"
-                  id="transaction-category"
-                  name="categoryId"
-                  value={formData.categoryId || ''}
-                  onChange={handleChange as any}
-                  label="Категория"
-                  size="medium"
-                  variant="outlined"
-                  disabled={isSaving}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CategoryIcon sx={{ mr: 1, color: formData.type === 'DEBIT' ? 'error.main' : 'success.main' }} />
-                      {getCategoryNameById(selected as number)}
-                    </Box>
-                  )}
-                >
-                  <MenuItem value="" disabled>
-                    <em>Выберите категорию</em>
-                  </MenuItem>
-                  
-                  {/* Отладочная информация о количестве категорий */}
-                  <MenuItem disabled>
-                    <Typography variant="caption" color="text.secondary">
-                      Всего категорий: {categories?.length || 0} | 
-                      Доходы: {incomeCategories?.length || 0} | 
-                      Расходы: {expenseCategories?.length || 0}
-                    </Typography>
-                  </MenuItem>
-                  <Divider />
-                  
-                  {/* Показываем категории в зависимости от выбранного типа транзакции */}
-                  {formData.type === 'DEBIT' ? (
-                    /* Для расхода (DEBIT) показываем категории расходов */
-                    [
-                      <Box key="expense-header" sx={{ px: 2, py: 1 }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Категории расходов {expenseCategories?.length ? `(${expenseCategories.length})` : '(нет категорий)'}
-                        </Typography>
-                      </Box>,
-                      expenseCategories && expenseCategories.length > 0 ? 
-                        expenseCategories.map((category) => (
-                          <MenuItem key={category.id} value={category.id}>
-                            {category.name}
-                          </MenuItem>
-                        ))
-                      : 
-                        <MenuItem key="no-expense" disabled>
-                          <Typography variant="body2" color="text.secondary">
-                            Нет категорий расходов. Создайте их в разделе "Категории".
-                          </Typography>
-                        </MenuItem>
-                    ]
-                  ) : (
-                    /* Для дохода (CREDIT) показываем категории доходов */
-                    [
-                      <Box key="income-header" sx={{ px: 2, py: 1 }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Категории доходов {incomeCategories?.length ? `(${incomeCategories.length})` : '(нет категорий)'}
-                        </Typography>
-                      </Box>,
-                      incomeCategories && incomeCategories.length > 0 ?
-                        incomeCategories.map((category) => (
-                          <MenuItem key={category.id} value={category.id}>
-                            {category.name}
-                          </MenuItem>
-                        ))
-                      :
-                        <MenuItem key="no-income" disabled>
-                          <Typography variant="body2" color="text.secondary">
-                            Нет категорий доходов. Создайте их в разделе "Категории".
-                          </Typography>
-                        </MenuItem>
-                    ]
-                  )}
-                  
-                  {categoriesLoading && (
-                    <MenuItem disabled>
-                      <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка категорий...
-                    </MenuItem>
-                  )}
-                </Select>
-                {formErrors.categoryId && (
-                  <FormHelperText error>{formErrors.categoryId}</FormHelperText>
-                )}
-              </FormControl>
+                <FormControl fullWidth>
+                  <TextField
+                    id="transaction-description"
+                    name="description"
+                    value={formData.comment || formData.description || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        description: value,
+                        comment: value
+                      }));
+                    }}
+                    placeholder="Описание транзакции"
+                    multiline
+                    rows={2}
+                    error={!!formErrors.comment || !!formErrors.description}
+                    helperText={formErrors.comment || formErrors.description}
+                    label="Описание"
+                    size="medium"
+                    variant="outlined"
+                    disabled={isSaving}
+                  />
+                </FormControl>
 
-              <FormControl fullWidth>
-                <InputLabel id="transaction-status-label">Статус</InputLabel>
-                <Select
-                  labelId="transaction-status-label"
-                  id="transaction-status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange as any}
-                  label="Статус"
-                  size="medium"
-                  variant="outlined"
-                  disabled={isSaving}
-                  renderValue={(selected) => (
-                    <Chip 
-                      label={selected} 
-                      color={
-                        selected === 'COMPLETED' ? 'success' : 
-                        selected === 'PENDING' ? 'warning' : 
-                        'default'
-                      }
-                      size="small"
+                <FormControl fullWidth>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
+                    <DatePicker
+                      label="Дата транзакции"
+                      value={date}
+                      onChange={handleDateChange}
+                      disabled={isSaving}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!formErrors.transactionDate,
+                          helperText: formErrors.transactionDate,
+                          size: "medium",
+                          variant: "outlined"
+                        },
+                      }}
                     />
+                  </LocalizationProvider>
+                </FormControl>
+
+                <FormControl fullWidth error={!!formErrors.categoryId}>
+                  <InputLabel id="transaction-category-label">Категория</InputLabel>
+                  <Select
+                    labelId="transaction-category-label"
+                    id="transaction-category"
+                    name="categoryId"
+                    value={formData.categoryId || ''}
+                    onChange={(e: SelectChangeEvent<unknown>) => {
+                      // Используем новый обработчик, но с дополнительной логикой
+                      handleSelectChange(e);
+                      
+                      // Обновляем также поле category для новой структуры
+                      if (e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          category: String(e.target.value)
+                        }));
+                      }
+                    }}
+                    label="Категория"
+                    size="medium"
+                    variant="outlined"
+                    disabled={isSaving}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CategoryIcon sx={{ mr: 1, color: formData.type === 'DEBIT' ? 'error.main' : 'success.main' }} />
+                        {getCategoryNameById(selected as number)}
+                      </Box>
+                    )}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>Выберите категорию</em>
+                    </MenuItem>
+                    
+                    {/* Отладочная информация о количестве категорий */}
+                    <MenuItem disabled>
+                      <Typography variant="caption" color="text.secondary">
+                        Всего категорий: {categories?.length || 0} | 
+                        Доходы: {incomeCategories?.length || 0} | 
+                        Расходы: {expenseCategories?.length || 0}
+                      </Typography>
+                    </MenuItem>
+                    <Divider />
+                    
+                    {/* Показываем категории в зависимости от выбранного типа транзакции */}
+                    {formData.type === 'DEBIT' ? (
+                      /* Для расхода (DEBIT) показываем категории расходов */
+                      [
+                        <Box key="expense-header" sx={{ px: 2, py: 1 }}>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Категории расходов {expenseCategories?.length ? `(${expenseCategories.length})` : '(нет категорий)'}
+                          </Typography>
+                        </Box>,
+                        expenseCategories && expenseCategories.length > 0 ? 
+                          expenseCategories.map((category) => (
+                            <MenuItem key={category.id} value={category.id}>
+                              {category.name}
+                            </MenuItem>
+                          ))
+                        : 
+                          <MenuItem key="no-expense" disabled>
+                            <Typography variant="body2" color="text.secondary">
+                              Нет категорий расходов. Создайте их в разделе "Категории".
+                            </Typography>
+                          </MenuItem>
+                      ]
+                    ) : (
+                      /* Для дохода (CREDIT) показываем категории доходов */
+                      [
+                        <Box key="income-header" sx={{ px: 2, py: 1 }}>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Категории доходов {incomeCategories?.length ? `(${incomeCategories.length})` : '(нет категорий)'}
+                          </Typography>
+                        </Box>,
+                        incomeCategories && incomeCategories.length > 0 ?
+                          incomeCategories.map((category) => (
+                            <MenuItem key={category.id} value={category.id}>
+                              {category.name}
+                            </MenuItem>
+                          ))
+                        :
+                          <MenuItem key="no-income" disabled>
+                            <Typography variant="body2" color="text.secondary">
+                              Нет категорий доходов. Создайте их в разделе "Категории".
+                            </Typography>
+                          </MenuItem>
+                      ]
+                    )}
+                    
+                    {categoriesLoading && (
+                      <MenuItem disabled>
+                        <CircularProgress size={20} sx={{ mr: 1 }} /> Загрузка категорий...
+                      </MenuItem>
+                    )}
+                  </Select>
+                  {formErrors.categoryId && (
+                    <FormHelperText error>{formErrors.categoryId}</FormHelperText>
                   )}
-                >
-                  <MenuItem value="COMPLETED">Завершено</MenuItem>
-                  <MenuItem value="PENDING">В ожидании</MenuItem>
-                  <MenuItem value="CANCELLED">Отменено</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
+                </FormControl>
+              </Stack>
+            )}
+
+            {activeTab === 1 && (
+              <Box>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+                  {/* Колонка отправителя и его банка */}
+                  <Box sx={{ flex: 1 }}>
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)' }}>
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                        Отправитель
+                      </Typography>
+                      
+                      <Stack spacing={2}>
+                        <FormControl fullWidth>
+                          <InputLabel id="person-type-label">Тип лица</InputLabel>
+                          <Select
+                            labelId="person-type-label"
+                            id="person-type"
+                            name="personType"
+                            value={formData.personType || 'INDIVIDUAL'}
+                            onChange={handleSelectChange}
+                            label="Тип лица"
+                            size="medium"
+                            disabled={isSaving}
+                          >
+                            <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
+                            <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <TextField
+                          label="Имя/Название организации"
+                          name="name"
+                          value={formData.name || ''}
+                          onChange={handleChange}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="ИНН"
+                          name="inn"
+                          value={formData.inn || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.inn}
+                          helperText={formErrors.inn}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Адрес"
+                          name="address"
+                          value={formData.address || ''}
+                          onChange={handleChange}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Телефон"
+                          name="phone"
+                          value={formData.phone || ''}
+                          onChange={handleChange}
+                          placeholder="+7XXXXXXXXXX"
+                          size="medium"
+                          disabled={isSaving}
+                          error={!!formErrors.phone}
+                          helperText={formErrors.phone}
+                        />
+                      </Stack>
+                    </Paper>
+
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, mt: 3, bgcolor: 'rgba(0,0,0,0.02)' }}>
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                        Банк отправителя
+                      </Typography>
+                      
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Название банка"
+                          name="nameBank"
+                          value={formData.nameBank || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.nameBank}
+                          helperText={formErrors.nameBank}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Расчетный счет"
+                          name="bill"
+                          value={formData.bill || ''}
+                          onChange={handleChange}
+                          placeholder="20 цифр"
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Корреспондентский счет"
+                          name="rBill"
+                          value={formData.rBill || ''}
+                          onChange={handleChange}
+                          placeholder="20 цифр"
+                          size="medium"
+                          disabled={isSaving}
+                        />
+                      </Stack>
+                    </Paper>
+                  </Box>
+
+                  {/* Колонка получателя и его банка */}
+                  <Box sx={{ flex: 1 }}>
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)' }}>
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                        Получатель
+                      </Typography>
+                      
+                      <Stack spacing={2}>
+                        <FormControl fullWidth>
+                          <InputLabel id="recipient-type-label">Тип лица получателя</InputLabel>
+                          <Select
+                            labelId="recipient-type-label"
+                            id="recipient-type"
+                            name="personTypeRecipient"
+                            value={formData.personTypeRecipient || 'INDIVIDUAL'}
+                            onChange={handleSelectChange}
+                            label="Тип лица получателя"
+                            size="medium"
+                            disabled={isSaving}
+                          >
+                            <MenuItem value="INDIVIDUAL">Физическое лицо</MenuItem>
+                            <MenuItem value="LEGAL">Юридическое лицо</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <TextField
+                          label="Имя/Название организации получателя"
+                          name="nameRecipient"
+                          value={formData.nameRecipient || ''}
+                          onChange={handleChange}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="ИНН получателя"
+                          name="innRecipient"
+                          value={formData.innRecipient || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.innRecipient}
+                          helperText={formErrors.innRecipient}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Адрес получателя"
+                          name="addressRecipient"
+                          value={formData.addressRecipient || ''}
+                          onChange={handleChange}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Телефон получателя"
+                          name="recipientPhoneRecipient"
+                          value={formData.recipientPhoneRecipient || ''}
+                          onChange={handleChange}
+                          placeholder="+7XXXXXXXXXX"
+                          size="medium"
+                          disabled={isSaving}
+                          error={!!formErrors.recipientPhoneRecipient}
+                          helperText={formErrors.recipientPhoneRecipient}
+                        />
+                      </Stack>
+                    </Paper>
+
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, mt: 3, bgcolor: 'rgba(0,0,0,0.02)' }}>
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                        Банк получателя
+                      </Typography>
+                      
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Название банка получателя"
+                          name="nameBankRecip"
+                          value={formData.nameBankRecip || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.nameBankRecip}
+                          helperText={formErrors.nameBankRecip}
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Расчетный счет получателя"
+                          name="billRecip"
+                          value={formData.billRecip || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.billRecip}
+                          helperText={formErrors.billRecip}
+                          placeholder="20 цифр"
+                          size="medium"
+                          disabled={isSaving}
+                        />
+
+                        <TextField
+                          label="Корреспондентский счет получателя"
+                          name="rBillRecip"
+                          value={formData.rBillRecip || ''}
+                          onChange={handleChange}
+                          error={!!formErrors.rBillRecip}
+                          helperText={formErrors.rBillRecip}
+                          placeholder="20 цифр"
+                          size="medium"
+                          disabled={isSaving}
+                        />
+                      </Stack>
+                    </Paper>
+                  </Box>
+                </Box>
+              </Box>
+            )}
           </Box>
           
           {isSaving && (
@@ -579,27 +1018,6 @@ const TransactionFormModal: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        
-        <DialogActions sx={{ p: 2, pt: 0, borderTop: `1px solid ${theme.palette.divider}` }}>
-          <Button
-            variant="outlined"
-            onClick={handleClose}
-            sx={{ minWidth: 100 }}
-            disabled={isSaving}
-          >
-            Отмена
-          </Button>
-          
-          <Button
-            variant="contained"
-            onClick={(e) => handleSubmit(e as any)}
-            color="primary"
-            disabled={isSaving}
-            sx={{ minWidth: 120 }}
-          >
-            {isEditing ? 'Сохранить' : 'Создать'}
-          </Button>
-        </DialogActions>
       </Box>
     </Dialog>
   );
