@@ -1,0 +1,20 @@
+# Используем Node.js 18 на Alpine в качестве базового образа
+FROM node:18-alpine
+
+# Устанавливаем рабочую директорию внутри контейнера
+WORKDIR /app
+
+# Копируем файлы package.json и package-lock.json (если есть)
+COPY package*.json ./
+
+# Устанавливаем зависимости
+RUN npm ci --legacy-peer-deps
+
+# Копируем остальные файлы проекта (опционально, можно передавать volume)
+# COPY . .
+
+# Открываем порт, на котором работает vite dev server
+EXPOSE 5173
+
+# Запускаем Vite в режиме разработки с host=0.0.0.0 для доступа извне
+CMD ["npm", "run", "dev"]

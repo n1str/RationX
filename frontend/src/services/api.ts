@@ -1,16 +1,26 @@
 import axios from 'axios';
 
-// Настраиваем базовый URL для API запросов
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? '' // В продакшне URL будет пустым, так как относительные пути будут работать
-  : 'http://localhost:8080'; // В режиме разработки указываем явный адрес бэкенда
+// Определяем BASE_URL в зависимости от окружения
+let BASE_URL = '';
+
+// Для Docker-контейнера используем имя сервиса из docker-compose
+if (window.location.hostname !== 'localhost') {
+  BASE_URL = 'http://backend:8080';
+} else {
+  // На локальной машине используем localhost
+  BASE_URL = 'http://localhost:8080';
+}
+
+// Выводим для отладки
+console.log('API BASE URL:', BASE_URL, 'Hostname:', window.location.hostname);
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Разрешаем отправку cookies в кросс-доменных запросах
+  timeout: 10000 // 10 секунд таймаут
 });
 
 // Request interceptor to add auth token to requests
