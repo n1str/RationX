@@ -12,16 +12,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import ru.rationx.financeapp.models.dto.TransactionDTO;
+import ru.rationx.financeapp.controllers.mapper.TransactionMapper;
+import ru.rationx.financeapp.models.dto.transaction.LiteTransactionDTO;
+import ru.rationx.financeapp.models.dto.transaction.TransactionDTO;
 import ru.rationx.financeapp.models.transaction.Transaction;
 import ru.rationx.financeapp.models.transaction.TransactionStatus;
 import ru.rationx.financeapp.models.transaction.TransactionType;
+import ru.rationx.financeapp.models.user.User;
 import ru.rationx.financeapp.services.TransactionService;
+import ru.rationx.financeapp.services.UserService;
 
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +35,8 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final UserService userService;
+    private final TransactionMapper transactionMapper;
 
     @GetMapping
     public ResponseEntity<?> getAllTransactions() {
@@ -229,6 +234,20 @@ public class TransactionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Ошибка при получении транзакции: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/get-all-tr")
+    public ResponseEntity<?> getAllTransactionByAuthUser(Principal principal){
+        // Получаем пользователя по имени
+        User user = userService.getUser(principal.getName());
+        // Транзакции пользователя
+       List<LiteTransactionDTO> liteTransactionDTOS =
+               transactionService.getByUserId(user.getId())
+                       .stream()
+                       .map(transactionMapper::toDTO)
+                       .toList();
+
+        return ResponseEntity.status(HttpStatus.OK).body(liteTransactionDTOS);
     }
 
     // Создание транзакции

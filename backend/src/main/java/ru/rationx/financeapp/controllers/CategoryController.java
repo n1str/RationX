@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import ru.rationx.financeapp.models.dto.CategoryDTO;
+import ru.rationx.financeapp.models.dto.category.CategoryDTO;
 import ru.rationx.financeapp.controllers.mapper.CategoryMapper;
 import ru.rationx.financeapp.models.transaction.Category;
 import ru.rationx.financeapp.models.transaction.TransactionType;

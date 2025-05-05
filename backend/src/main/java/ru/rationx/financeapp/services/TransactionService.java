@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.rationx.financeapp.models.bank.Bank;
-import ru.rationx.financeapp.models.dto.TransactionDTO;
+import ru.rationx.financeapp.models.dto.transaction.TransactionDTO;
 import ru.rationx.financeapp.models.subject.Subject;
 import ru.rationx.financeapp.models.transaction.*;
 import ru.rationx.financeapp.repository.TransactionRepository;
@@ -37,49 +37,132 @@ public class TransactionService {
 
     //-----------------------ФИЛЬТРЫ-----------------------------------//
 
-    //Фильтрация по статусу
-    public List<Transaction> getByStatus(TransactionStatus status) {
-        return transactionRepository.findByStatus(status);
-    }
-
-    //Фильтрация по ИНН получателя
-    public List<Transaction> getByRecipientInn(String inn) {
-        return transactionRepository.findByRecipientInn(inn);
-    }
-
-    //Фильтрация по типу транзакции
-    public List<Transaction> getByTransactionType(TransactionType type) {
-        return transactionRepository.findByType(type);
-    }
-
-    //Фильтрация по категории
-    public List<Transaction> getByCategory(Category category) {
-        return transactionRepository.findByCategoryId(category.getId());
-    }
-
-    //Фильтрация по банку отправителя
-    public List<Transaction> getBySenderBank(String nameBank) {
-        return transactionRepository.findBySenderBank(nameBank);
-    }
-
-    //Фильтрация по банку получателя
-    public List<Transaction> getByRecipientBank(String nameBank) {
-        return transactionRepository.findByRecipientBank(nameBank);
-    }
-
-    //Фильтрация по диапазону дат
-    public List<Transaction> getByDateRange(LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findByDateBetween(start, end);
-    }
-
-    //Фильтрация по диапазону суммы
-    public List<Transaction> getByAmountRange(Double min, Double max) {
-        return transactionRepository.findByAmountBetween(BigDecimal.valueOf(min), BigDecimal.valueOf(max));
-    }
-
     //Найти все транзакции
     public List<Transaction> getAll() {
         return transactionRepository.findAll();
+    }
+
+    /**
+     * Получить все транзакции
+     */
+    public List<Transaction> getAllTransactions() {
+        try {
+            return transactionRepository.findAll();
+        } catch (Exception e) {
+            log.error("Error while getting all transactions", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакцию по ID
+     */
+    public Transaction getTransactionById(Long id) {
+        try {
+            Optional<Transaction> transaction = transactionRepository.findById(id);
+            return transaction.orElse(null);
+        } catch (Exception e) {
+            log.error("Error while getting transaction by id: " + id, e);
+            return null;
+        }
+    }
+
+    /**
+     * Получить транзакции по статусу
+     */
+    public List<Transaction> getTransactionsByStatus(TransactionStatus status) {
+        try {
+            return transactionRepository.findByStatus(status);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by status: " + status, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по типу
+     */
+    public List<Transaction> getTransactionsByType(TransactionType type) {
+        try {
+            return transactionRepository.findByType(type);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by type: " + type, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по категории
+     */
+    public List<Transaction> getTransactionsByCategory(Long categoryId) {
+        try {
+            return transactionRepository.findByCategoryId(categoryId);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by category id: " + categoryId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по ИНН получателя
+     */
+    public List<Transaction> getTransactionsByRecipientInn(String inn) {
+        try {
+            return transactionRepository.findByRecipientInn(inn);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by recipient inn: " + inn, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по банку отправителя
+     */
+    public List<Transaction> getTransactionsBySenderBank(String bank) {
+        try {
+            return transactionRepository.findBySenderBank(bank);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by sender bank: " + bank, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по банку получателя
+     */
+    public List<Transaction> getTransactionsByRecipientBank(String bank) {
+        try {
+            return transactionRepository.findByRecipientBank(bank);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by recipient bank: " + bank, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по диапазону дат
+     */
+    public List<Transaction> getTransactionsByDateRange(LocalDate startDate, LocalDate endDate) {
+        try {
+            LocalDateTime startDateTime = startDate.atStartOfDay();
+            LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+            return transactionRepository.findByDateBetween(startDateTime, endDateTime);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by date range: " + startDate + " - " + endDate, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по диапазону сумм
+     */
+    public List<Transaction> getTransactionsByAmountRange(BigDecimal minAmount, BigDecimal maxAmount) {
+        try {
+            return transactionRepository.findByAmountBetween(minAmount, maxAmount);
+        } catch (Exception e) {
+            log.error("Error while getting transactions by amount range: " + minAmount + " - " + maxAmount, e);
+            return Collections.emptyList();
+        }
     }
 
     //-----------------------ДЕЙСТВИЯ С ТРАЗАКЦИЯМИ-----------------------------------//
@@ -235,7 +318,7 @@ public class TransactionService {
         // Обновление данных о регистрах накопления которые приход/расход
         regService.updateReg(transaction,updatedData.getSum(), updatedData.getTransactionType());
 
-        // Ставим статус
+        // Ставим статус (опасность налл)
         if (updatedData.getStatus() != null || !updatedData.getStatus().getDescription().isBlank()) {
             log.info("Подтягиваем статус транзакции `{}`...",updatedData.getStatus());
             transaction.setStatus(updatedData.getStatus());
@@ -256,6 +339,11 @@ public class TransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Транзакция с ID " + id + " не найдена"));
     }
 
+    // найти транзакции по id user
+    public List<Transaction> getByUserId(Long id){
+        return transactionRepository.findAllByUserId(id);
+    }
+
     //Удаление транзакции
     @Transactional
     public void markAsDeleted(Long id) {
@@ -272,126 +360,4 @@ public class TransactionService {
         transactionRepository.save(transaction);
     }
 
-    /**
-     * Получить все транзакции
-     */
-    public List<Transaction> getAllTransactions() {
-        try {
-            return transactionRepository.findAll();
-        } catch (Exception e) {
-            log.error("Error while getting all transactions", e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакцию по ID
-     */
-    public Transaction getTransactionById(Long id) {
-        try {
-            Optional<Transaction> transaction = transactionRepository.findById(id);
-            return transaction.orElse(null);
-        } catch (Exception e) {
-            log.error("Error while getting transaction by id: " + id, e);
-            return null;
-        }
-    }
-
-    /**
-     * Получить транзакции по статусу
-     */
-    public List<Transaction> getTransactionsByStatus(TransactionStatus status) {
-        try {
-            return transactionRepository.findByStatus(status);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by status: " + status, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по типу
-     */
-    public List<Transaction> getTransactionsByType(TransactionType type) {
-        try {
-            return transactionRepository.findByType(type);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by type: " + type, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по категории
-     */
-    public List<Transaction> getTransactionsByCategory(Long categoryId) {
-        try {
-            return transactionRepository.findByCategoryId(categoryId);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by category id: " + categoryId, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по ИНН получателя
-     */
-    public List<Transaction> getTransactionsByRecipientInn(String inn) {
-        try {
-            return transactionRepository.findByRecipientInn(inn);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by recipient inn: " + inn, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по банку отправителя
-     */
-    public List<Transaction> getTransactionsBySenderBank(String bank) {
-        try {
-            return transactionRepository.findBySenderBank(bank);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by sender bank: " + bank, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по банку получателя
-     */
-    public List<Transaction> getTransactionsByRecipientBank(String bank) {
-        try {
-            return transactionRepository.findByRecipientBank(bank);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by recipient bank: " + bank, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по диапазону дат
-     */
-    public List<Transaction> getTransactionsByDateRange(LocalDate startDate, LocalDate endDate) {
-        try {
-            LocalDateTime startDateTime = startDate.atStartOfDay();
-            LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
-            return transactionRepository.findByDateBetween(startDateTime, endDateTime);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by date range: " + startDate + " - " + endDate, e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Получить транзакции по диапазону сумм
-     */
-    public List<Transaction> getTransactionsByAmountRange(BigDecimal minAmount, BigDecimal maxAmount) {
-        try {
-            return transactionRepository.findByAmountBetween(minAmount, maxAmount);
-        } catch (Exception e) {
-            log.error("Error while getting transactions by amount range: " + minAmount + " - " + maxAmount, e);
-            return Collections.emptyList();
-        }
-    }
 }

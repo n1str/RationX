@@ -15,10 +15,9 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import ru.rationx.financeapp.models.dto.LoginRequest;
-import ru.rationx.financeapp.models.dto.LoginResponse;
-import ru.rationx.financeapp.models.dto.RegisterRequest;
-import ru.rationx.financeapp.models.dto.ResponseDTO;
+import ru.rationx.financeapp.models.dto.auth.LoginRequest;
+import ru.rationx.financeapp.models.dto.auth.RegisterRequest;
+import ru.rationx.financeapp.models.dto.response.ResponseDTO;
 import ru.rationx.financeapp.models.user.User;
 import ru.rationx.financeapp.models.role.RoleUser;
 import ru.rationx.financeapp.repository.UserRepository;

@@ -1,4 +1,4 @@
-package ru.rationx.financeapp.models.dto;
+package ru.rationx.financeapp.models.dto.transaction;
 
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.*;
@@ -42,33 +42,35 @@ public class TransactionDTO {
 
     TransactionStatus status;
 
-    @NotNull
+    @NotNull(message = "Значение `personType` не может быть null или пустым ")
     private Subject.PersonType personType;
 
     // Имя участника (например, Иван Иванов или ООО "Ромашка")
     private String name;
 
     // ИНН участника (обязательное поле, для физлиц - 12 цифр, для юрлиц - 10 цифр)
-    @NotNull
+    @NotNull(message = "Значение `inn` не может быть null или пустым ")
     @Pattern(regexp = "^\\d{10}|\\d{12}$", message = "ИНН должен содержать 10 или 12 цифр")
     private String inn;
 
     // Адрес участника
+    @NotNull(message = "Значение `address` не может быть null или пустым ")
     private String address;
 
     // Телефон получателя (в формате +7XXXXXXXXXX или 8XXXXXXXXXX)
+
     @Pattern(regexp = "^(\\+7|8)\\d{10}$", message = "Телефон должен начинаться с +7 или 8 и содержать 11 цифр")
     private String phone;
 
     //
-    @NotNull
+    @NotNull(message = "Значение `personTypeRecipient` не может быть null или пустым ")
     private Subject.PersonType personTypeRecipient;
 
     // Имя участника (например, Иван Иванов или ООО "Ромашка")
     private String nameRecipient;
 
     // ИНН участника (обязательное поле, для физлиц - 12 цифр, для юрлиц - 10 цифр)
-    @NotNull
+    @NotNull(message = "Значение `innRecipient` не может быть null или пустым ")
     @Pattern(regexp = "^\\d{10}|\\d{12}$", message = "ИНН должен содержать 10 или 12 цифр")
     private String innRecipient;
 
@@ -80,42 +82,44 @@ public class TransactionDTO {
     private String recipientPhoneRecipient;
 
 
-    @NotNull
+    @NotNull(message = "Значение `nameBank` не может быть null или пустым ")
     private String nameBank;
 
         // Основной расчетный счет
+        @NotNull(message = "Значение `bill` не может быть null или пустым ")
         private String bill;
         // Расчетный счет
+        @NotNull(message = "Значение `rBill` не может быть null или пустым ")
         private String rBill;
 
-    @NotNull
+    @NotNull(message = "Значение `nameBankRecip` не может быть null или пустым ")
     private String nameBankRecip;
 
         // Основной расчетный счет
-        @NotNull
+        @NotNull(message = "Значение `billRecip` не может быть null или пустым ")
         private String billRecip;
 
         // Расчетный счет
-        @NotNull
+        @NotNull(message = "Значение `rBillRecip` не может быть null или пустым ")
         private String rBillRecip;
 
 
     private String comment;
 
-    @NotNull
+    @NotNull(message = "Значение `category` не может быть null или пустым ")
     private String category;
 
-    @NotNull
+    @NotNull(message = "Значение `transactionType` не может быть null или пустым ")
     private TransactionType transactionType;
 
-    @NotNull
+    @NotNull(message = "Значение `sum` не может быть null или пустым ")
     @DecimalMin(value = "0.01", inclusive = true)
     @DecimalMax(value = "999999.99999", inclusive = true)
     @Digits(integer = 6, fraction = 5)
     @Column(nullable = false)
     private Double sum;
 
-    @NotNull
+    @NotNull(message = "Значение `typeOperation` не может быть null или пустым ")
     private TransactionType typeOperation;
 
 }

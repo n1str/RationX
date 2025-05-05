@@ -1,7 +1,7 @@
 package ru.rationx.financeapp.controllers.mapper;
 
 import org.springframework.stereotype.Component;
-import ru.rationx.financeapp.models.dto.CategoryDTO;
+import ru.rationx.financeapp.models.dto.category.CategoryDTO;
 import ru.rationx.financeapp.models.transaction.Category;
 
 @Component

@@ -3,7 +3,7 @@ package ru.rationx.financeapp.services.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import ru.rationx.financeapp.models.dto.TransactionDTO;
+import ru.rationx.financeapp.models.dto.transaction.TransactionDTO;
 import ru.rationx.financeapp.models.transaction.Transaction;
 
 @Mapper(componentModel = "spring")

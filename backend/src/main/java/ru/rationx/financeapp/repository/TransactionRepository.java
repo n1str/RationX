@@ -19,10 +19,10 @@ import java.util.List;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
     // По id пользователя
-    List<Transaction> findAllByUserId(Long id);
+   List<Transaction> findAllByUserId(Long id);
 
     // По username пользователя
-    List<Transaction> findAllByUserUsername(String username);
+    //List<Transaction> findAllByUserUsername(String username);
 
     // По статусу
     List<Transaction> findByStatus(TransactionStatus status);

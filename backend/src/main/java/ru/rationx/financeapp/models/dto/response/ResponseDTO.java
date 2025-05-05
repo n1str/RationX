@@ -1,9 +1,8 @@
-package ru.rationx.financeapp.models.dto;
+package ru.rationx.financeapp.models.dto.response;
 
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.stereotype.Service;
 
 @Builder
 @Setter

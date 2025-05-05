@@ -1,11 +1,7 @@
-package ru.rationx.financeapp.models.dto;
+package ru.rationx.financeapp.models.dto.statistic;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 /*
      Map<String, Object> statistics = new HashMap<>();
@@ -15,22 +11,18 @@ import lombok.Setter;
     statistics.put("transactionCount", 42);
  */
 
-@Data
-@Builder
+
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class StatisticDTO {
     @NotNull
-    private Double totalIncome;
+    private String type;
 
     @NotNull
-    private Double totalExpense;
-
-    @NotNull
-    private Double balance;
-
-    @NotNull
-    private Long transactionCount;
+    private Double sum;
 
 
 }

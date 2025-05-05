@@ -1,12 +1,15 @@
 package ru.rationx.financeapp.controllers;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import ru.rationx.financeapp.models.dto.statistic.StatisticDTO;
 import ru.rationx.financeapp.models.transaction.TransactionType;
+import ru.rationx.financeapp.services.StatisticService;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
@@ -22,21 +25,19 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/statistics")
+@RequiredArgsConstructor
 public class StatisticsController {
+    private final StatisticService statistics;
 
     @GetMapping
     public ResponseEntity<?> getGeneralStatistics(Principal principal) {
         try {
             log.info("GET /api/statistics - User: {}", principal.getName());
-            
-            // Заглушка для отладки
-            Map<String, Object> statistics = new HashMap<>();
-            statistics.put("totalIncome", 150000.0);
-            statistics.put("totalExpense", 85000.0);
-            statistics.put("balance", 65000.0);
-            statistics.put("transactionCount", 42);
-            
-            return ResponseEntity.ok(statistics);
+
+            // Получаем общую статистику
+            Map<String, Object> objectMap = statistics.generalStatistic(principal);
+
+            return ResponseEntity.ok(objectMap);
         } catch (Exception e) {
             log.error("Error getting general statistics: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", "Ошибка при получении статистики: " + e.getMessage()));
@@ -44,20 +45,13 @@ public class StatisticsController {
     }
 
     @GetMapping("/by-category")
-    public ResponseEntity<?> getStatisticsByCategory() {
+    public ResponseEntity<?> getStatisticsByCategory(Principal principal) {
         try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            log.info("GET /api/statistics/by-category - User: {}", auth.getName());
-            
-            // Заглушка для отладки
-            Map<String, Object> statistics = new HashMap<>();
-            statistics.put("Зарплата", 120000.0);
-            statistics.put("Инвестиции", 30000.0);
-            statistics.put("Покупки", 45000.0);
-            statistics.put("Аренда", 25000.0);
-            statistics.put("Развлечения", 15000.0);
-            
-            return ResponseEntity.ok(statistics);
+            log.info("GET /api/statistics/by-category - User: {}", principal.getName());
+
+            Map<String, StatisticDTO> byCategory = statistics.getByCategory(principal);
+
+            return ResponseEntity.ok(byCategory);
         } catch (Exception e) {
             log.error("Error getting statistics by category: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", "Ошибка при получении статистики по категориям: " + e.getMessage()));

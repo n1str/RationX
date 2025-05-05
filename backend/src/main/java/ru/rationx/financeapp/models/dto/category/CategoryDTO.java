@@ -1,4 +1,4 @@
-package ru.rationx.financeapp.models.dto;
+package ru.rationx.financeapp.models.dto.category;
 
 
 import lombok.Data;
