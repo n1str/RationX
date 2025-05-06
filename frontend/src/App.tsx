@@ -1,32 +1,62 @@
-// import React from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { CssBaseline } from '@mui/material';
+import { CssBaseline, Typography, Container, Box, Button } from '@mui/material';
 import { Provider } from 'react-redux';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ru } from 'date-fns/locale';
 import store from './store';
 import CustomThemeProvider from './utils/theme';
-import React from 'react';
 
-// Pages
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import TransactionsPage from './pages/TransactionsPage';
-import TransactionFormPage from './pages/TransactionFormPage';
-import CategoriesPage from './pages/CategoriesPage';
-import CategoryFormPage from './pages/CategoryFormPage';
-import StatisticsPage from './pages/StatisticsPage';
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
+// Lazy loading компонентов для улучшения производительности
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const RegisterPage = React.lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const TransactionsPage = React.lazy(() => import('./pages/TransactionsPage'));
+const TransactionFormPage = React.lazy(() => import('./pages/TransactionFormPage'));
+const CategoriesPage = React.lazy(() => import('./pages/CategoriesPage'));
+const CategoryFormPage = React.lazy(() => import('./pages/CategoryFormPage'));
+const StatisticsPage = React.lazy(() => import('./pages/StatisticsPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 
-// Components
-import Layout from './components/common/Layout';
-import ProtectedRoute from './components/common/ProtectedRoute';
+// Компоненты
+const Layout = React.lazy(() => import('./components/common/Layout'));
+const ProtectedRoute = React.lazy(() => import('./components/common/ProtectedRoute'));
+
+// Компонент загрузки
+const Loading = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <Typography variant="h5">Загрузка...</Typography>
+  </Box>
+);
+
+// Тестовая домашняя страница для проверки работы
+const HomePage = () => {
+  return (
+    <Container maxWidth="md" sx={{ mt: 10 }}>
+      <Box sx={{ textAlign: 'center', p: 4, border: '1px solid #eee', borderRadius: 2 }}>
+        <Typography variant="h3" gutterBottom>
+          Добро пожаловать в RationX
+        </Typography>
+        <Typography variant="h5" color="text.secondary" gutterBottom>
+          Финансовое приложение для управления транзакциями
+        </Typography>
+        <Box sx={{ mt: 4 }}>
+          <Button variant="contained" color="primary" href="/login" sx={{ mx: 1 }}>
+            Войти
+          </Button>
+          <Button variant="outlined" color="primary" href="/register" sx={{ mx: 1 }}>
+            Регистрация
+          </Button>
+        </Box>
+      </Box>
+    </Container>
+  );
+};
 
 // Мемоизируем основной компонент приложения для предотвращения лишних перерисовок
-const App = React.memo(() => {
+const App = () => {
   return (
     <Provider store={store}>
       <CustomThemeProvider>
@@ -36,45 +66,41 @@ const App = React.memo(() => {
         >
           <CssBaseline />
           <Router>
-            <Routes>
-              {/* Auth Routes */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+            <React.Suspense fallback={<Loading />}>
+              <Routes>
+                {/* Тестовая домашняя страница */}
+                <Route path="/" element={<HomePage />} />
+                
+                {/* Auth Routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route element={<Layout />}>
-                  <Route path="/dashboard" element={<DashboardPage />} />
-
-                  {/* Transactions Routes - без дополнительных оберток */}
-                  <Route path="/transactions" element={<TransactionsPage />} />
-                  <Route path="/transactions/new" element={<TransactionFormPage />} />
-                  <Route path="/transactions/:id" element={<TransactionFormPage />} />
-                  <Route path="/transactions/:id/edit" element={<TransactionFormPage />} />
-
-                  {/* Categories Routes */}
-                  <Route path="/categories" element={<CategoriesPage />} />
-                  <Route path="/categories/new" element={<CategoryFormPage />} />
-                  <Route path="/categories/:id/edit" element={<CategoryFormPage />} />
-
-                  {/* Statistics Route */}
-                  <Route path="/statistics" element={<StatisticsPage />} />
-                  
-                  {/* Profile and Settings Routes */}
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
+                {/* Protected Routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<Layout />}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/transactions" element={<TransactionsPage />} />
+                    <Route path="/transactions/new" element={<TransactionFormPage />} />
+                    <Route path="/transactions/:id" element={<TransactionFormPage />} />
+                    <Route path="/transactions/:id/edit" element={<TransactionFormPage />} />
+                    <Route path="/categories" element={<CategoriesPage />} />
+                    <Route path="/categories/new" element={<CategoryFormPage />} />
+                    <Route path="/categories/:id/edit" element={<CategoryFormPage />} />
+                    <Route path="/statistics" element={<StatisticsPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
                 </Route>
-              </Route>
 
-              {/* Redirect to login by default */}
-              <Route path="/" element={<Navigate to="/login" />} />
-              <Route path="*" element={<Navigate to="/login" />} />
-            </Routes>
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </React.Suspense>
           </Router>
         </LocalizationProvider>
       </CustomThemeProvider>
     </Provider>
   );
-});
+};
 
 export default App;

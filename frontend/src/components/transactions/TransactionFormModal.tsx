@@ -628,10 +628,16 @@ const TransactionFormModal: React.FC = () => {
   };
 
   // Получаем имя категории по ID
-  const getCategoryNameById = (id: number): string => {
+  const getCategoryNameById = (id: number | string): string => {
+    if (!id) return 'Категория не указана';
+    
+    // Преобразуем ID в строку для сравнения
+    const categoryIdStr = String(id);
+    
     const category = Array.isArray(categories) 
-      ? categories.find(cat => cat.id === id)
+      ? categories.find(cat => String(cat.id) === categoryIdStr)
       : null;
+      
     return category ? category.name : 'Категория не найдена';
   };
   

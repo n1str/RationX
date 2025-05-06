@@ -70,13 +70,34 @@ const formatCurrency = (amount: number): string => {
 };
 
 // Format date
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'Не указана';
+  
+  try {
+    const date = new Date(dateString);
+    // Проверка на валидность даты
+    if (isNaN(date.getTime())) {
+      return 'Не указана';
+    }
+    
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (error) {
+    console.error('Ошибка при форматировании даты:', dateString, error);
+    return 'Не указана';
+  }
+};
+
+// Функция для получения категории по идентификатору с исправленным сравнением
+const getCategoryById = (categoryId: string | number | undefined, categoriesList: any[]): any => {
+  if (!categoryId || !Array.isArray(categoriesList)) return null;
+  
+  // Приводим ID категории к строке для сравнения
+  const categoryIdStr = String(categoryId);
+  return categoriesList.find(c => String(c.id) === categoryIdStr);
 };
 
 // Используем React.memo для предотвращения лишних рендеров
@@ -109,10 +130,10 @@ const TransactionRow = React.memo(({
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'CREDIT' ? 'error.main' : 'success.main',
           }}
         >
-          {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
+          {transaction.type === 'CREDIT' ? <TrendingDown /> : <TrendingUp />}
         </Box>
       </TableCell>
       <TableCell>
@@ -127,23 +148,28 @@ const TransactionRow = React.memo(({
         {category?.name || 'Без категории'}
       </TableCell>
       <TableCell>
-        {formatDate(transaction.transactionDate)}
+        {transaction.transactionDate ? formatDate(transaction.transactionDate) : 'Нет даты'}
       </TableCell>
       <TableCell>
         <Typography 
           sx={{ 
-            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'CREDIT' ? 'error.main' : 'success.main',
             fontWeight: 600,
           }}
         >
-          {transaction.type === 'DEBIT' ? '-' : '+'}{formatCurrency(transaction.amount)}
+          {transaction.type === 'CREDIT' ? '-' : '+'}
+          {transaction.amount ? formatCurrency(transaction.amount) : '₽0'}
         </Typography>
       </TableCell>
       <TableCell>
         <Chip 
-          label={transaction.status} 
+          label={transaction.status || 'Неизвестно'} 
           size="small"
-          color={getStatusChipColor(transaction.status) as any}
+          color={(transaction.status ? 
+            (transaction.status === 'COMPLETED' ? 'success' : 
+             transaction.status === 'PENDING' ? 'warning' : 
+             transaction.status === 'FAILED' ? 'error' : 'default') 
+            : 'default') as any}
           sx={{ borderRadius: 1 }}
         />
       </TableCell>
@@ -233,7 +259,7 @@ const TransactionsList: React.FC = () => {
         return (
           (transaction.description || '').toLowerCase().includes(searchTermLower) ||
           (transaction.recipientName || '').toLowerCase().includes(searchTermLower) ||
-          (transaction.recipientBank || '').toLowerCase().includes(searchTermLower) ||
+          (transaction.nameBankRecip || '').toLowerCase().includes(searchTermLower) ||
           (transaction.amount?.toString() || '').includes(searchTermLower)
         );
       })
@@ -242,22 +268,6 @@ const TransactionsList: React.FC = () => {
   // Apply pagination
   const paginatedTransactions = filteredTransactions
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  
-  // Get status chip color
-  const getStatusChipColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'success';
-      case 'PENDING':
-        return 'warning';
-      case 'FAILED':
-        return 'error';
-      case 'CANCELLED':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
   
   return (
     <Box sx={{ 
@@ -400,9 +410,7 @@ const TransactionsList: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {paginatedTransactions.map((transaction) => {
-                    const category = Array.isArray(categories)
-                      ? categories.find(cat => cat?.id === transaction?.categoryId)
-                      : null;
+                    const category = getCategoryById(transaction?.categoryId, categories);
                     
                     return (
                       <TransactionRow

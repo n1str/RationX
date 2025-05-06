@@ -61,7 +61,9 @@ class StatisticsService {
       console.log('StatisticsService: запрос общей статистики...');
       const response = await api.get(STATISTICS_ENDPOINTS.GENERAL);
       console.log('StatisticsService: получена общая статистика:', response.data);
-      return response.data;
+      
+      // Нормализуем данные от бэкенда
+      return this._normalizeGeneralStatistics(response.data);
     } catch (error) {
       console.error('Failed to fetch general statistics:', error);
       console.log('StatisticsService: возвращаем заглушку вместо данных с сервера');
@@ -71,8 +73,12 @@ class StatisticsService {
 
   async getStatisticsByCategory(): Promise<CategoryStatistics[]> {
     try {
+      console.log('StatisticsService: запрос статистики по категориям...');
       const response = await api.get(STATISTICS_ENDPOINTS.BY_CATEGORY);
-      return response.data;
+      console.log('StatisticsService: получена статистика по категориям:', response.data);
+      
+      // Преобразуем данные от бэкенда в нужный формат
+      return this._normalizeCategoryStatistics(response.data);
     } catch (error) {
       console.error('Failed to fetch statistics by category:', error);
       return [];
@@ -84,9 +90,13 @@ class StatisticsService {
     end: string = ''
   ): Promise<PeriodStatistics[]> {
     try {
+      console.log(`StatisticsService: запрос статистики по периоду (${start} - ${end})...`);
       const queryParams = start && end ? `?start=${start}&end=${end}` : '';
       const response = await api.get(`${STATISTICS_ENDPOINTS.BY_PERIOD}${queryParams}`);
-      return response.data;
+      console.log('StatisticsService: получена статистика по периоду:', response.data);
+      
+      // Преобразуем данные от бэкенда в нужный формат
+      return this._normalizePeriodStatistics(response.data);
     } catch (error) {
       console.error('Failed to fetch statistics by period:', error);
       return [];
@@ -95,7 +105,11 @@ class StatisticsService {
 
   async getStatisticsByType(type: 'DEBIT' | 'CREDIT'): Promise<any> {
     try {
+      console.log(`StatisticsService: запрос статистики по типу ${type}...`);
       const response = await api.get(`${STATISTICS_ENDPOINTS.BY_TYPE}?type=${type}`);
+      console.log('StatisticsService: получена статистика по типу:', response.data);
+      
+      // Возвращаем данные как есть, так как они уже должны быть в правильном формате
       return response.data;
     } catch (error) {
       console.error(`Failed to fetch statistics for ${type}:`, error);
@@ -105,8 +119,12 @@ class StatisticsService {
 
   async getLastMonthStatistics(): Promise<PeriodStatistics> {
     try {
+      console.log('StatisticsService: запрос статистики за последний месяц...');
       const response = await api.get(STATISTICS_ENDPOINTS.LAST_MONTH);
-      return response.data;
+      console.log('StatisticsService: получена статистика за последний месяц:', response.data);
+      
+      // Преобразуем данные от бэкенда в нужный формат
+      return this._normalizeSinglePeriodStatistics(response.data);
     } catch (error) {
       console.error('Failed to fetch last month statistics:', error);
       return FALLBACK_PERIOD_STATISTICS;
@@ -115,12 +133,101 @@ class StatisticsService {
 
   async getLastYearStatistics(): Promise<PeriodStatistics[]> {
     try {
+      console.log('StatisticsService: запрос статистики за последний год...');
       const response = await api.get(STATISTICS_ENDPOINTS.LAST_YEAR);
-      return response.data;
+      console.log('StatisticsService: получена статистика за последний год:', response.data);
+      
+      // Преобразуем данные от бэкенда в нужный формат
+      return this._normalizePeriodStatistics(response.data);
     } catch (error) {
       console.error('Failed to fetch last year statistics:', error);
       return [FALLBACK_PERIOD_STATISTICS];
     }
+  }
+  
+  // Приватные методы для нормализации данных
+  
+  private _normalizeGeneralStatistics(data: any): GeneralStatistics {
+    if (!data) return FALLBACK_GENERAL_STATISTICS;
+    
+    // Инвертируем доходы и расходы, т.к. на бэкенде они считаются наоборот
+    const totalIncome = data.totalExpense || data.expenses || 0;
+    const totalExpenses = data.totalIncome || data.income || 0;
+    const balance = totalIncome - totalExpenses;
+    
+    console.log('Исходные данные статистики:', data);
+    console.log('Скорректированные данные:', {
+      totalIncome,
+      totalExpenses,
+      balance
+    });
+    
+    return {
+      totalIncome,
+      totalExpenses,
+      balance,
+      transactionCount: data.transactionCount || data.transactions || 0,
+      averageTransaction: data.averageTransaction || data.average || 0,
+      largestIncome: data.largestExpense || data.maxExpense || 0,
+      largestExpense: data.largestIncome || data.maxIncome || 0
+    };
+  }
+  
+  private _normalizeCategoryStatistics(data: any): CategoryStatistics[] {
+    if (!data || !Array.isArray(data)) return [];
+    
+    // Если данные пришли в неожиданном формате (объект вместо массива)
+    if (!Array.isArray(data) && typeof data === 'object') {
+      const result: CategoryStatistics[] = [];
+      
+      // Преобразуем объект в массив объектов CategoryStatistics
+      Object.entries(data).forEach(([categoryName, stats]: [string, any]) => {
+        result.push({
+          categoryId: stats.id || 0,
+          categoryName: categoryName,
+          categoryType: stats.type || 'DEBIT',
+          amount: stats.amount || stats.sum || 0,
+          percentage: stats.percentage || 0,
+          transactionCount: stats.count || 0
+        });
+      });
+      
+      return result;
+    }
+    
+    // Если данные пришли как массив объектов
+    return data.map((category: any) => ({
+      categoryId: category.categoryId || category.id || 0,
+      categoryName: category.categoryName || category.name || '',
+      categoryType: category.categoryType || category.type || 'DEBIT',
+      amount: category.amount || category.sum || 0,
+      percentage: category.percentage || 0,
+      transactionCount: category.transactionCount || category.count || 0
+    }));
+  }
+  
+  private _normalizePeriodStatistics(data: any): PeriodStatistics[] {
+    if (!data) return [FALLBACK_PERIOD_STATISTICS];
+    
+    // Если данные пришли как один объект (не массив)
+    if (!Array.isArray(data)) {
+      return [this._normalizeSinglePeriodStatistics(data)];
+    }
+    
+    // Если данные пришли как массив
+    return data.map(this._normalizeSinglePeriodStatistics);
+  }
+  
+  private _normalizeSinglePeriodStatistics(period: any): PeriodStatistics {
+    if (!period) return FALLBACK_PERIOD_STATISTICS;
+    
+    return {
+      period: period.period || new Date().toISOString(),
+      income: period.income || period.totalIncome || 0,
+      expenses: period.expenses || period.totalExpense || 0,
+      balance: period.balance || 0,
+      transactionCount: period.transactionCount || period.count || 0
+    };
   }
 }
 

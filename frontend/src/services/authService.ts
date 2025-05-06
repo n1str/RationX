@@ -1,5 +1,5 @@
 import api from './api';
-import { jwtDecode } from 'jwt-decode';
+import jwt_decode from 'jwt-decode';
 import safeStorage from '../utils/storage';
 
 interface LoginRequest {
@@ -87,7 +87,7 @@ class AuthService {
     }
 
     try {
-      const decoded = jwtDecode<JwtPayload>(token);
+      const decoded = jwt_decode<JwtPayload>(token);
       const currentTime = Date.now() / 1000;
       
       // Check if token is expired

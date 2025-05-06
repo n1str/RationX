@@ -157,9 +157,48 @@ const Layout: React.FC = () => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            Finance App
-          </Typography>
+          <Box 
+            sx={{ 
+              flexGrow: 1, 
+              display: 'flex', 
+              alignItems: 'center',
+              '&:hover': {
+                cursor: 'pointer'
+              }
+            }}
+            onClick={() => navigate('/dashboard')}
+          >
+            <Typography 
+              variant="h5" 
+              component="div" 
+              sx={{ 
+                fontWeight: 700, 
+                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Ration<Box component="span" sx={{ color: '#f50057', WebkitTextFillColor: '#f50057' }}>X</Box>
+            </Typography>
+            {!isMobile && (
+              <Box 
+                sx={{ 
+                  ml: 1, 
+                  px: 1.5, 
+                  py: 0.5, 
+                  bgcolor: 'rgba(255,255,255,0.1)', 
+                  borderRadius: 1,
+                  fontSize: '0.7rem',
+                  fontWeight: 500
+                }}
+              >
+                FINANCE
+              </Box>
+            )}
+          </Box>
           <Tooltip title="Account settings">
             <IconButton
               onClick={handleMenuOpen}
@@ -254,9 +293,7 @@ const Layout: React.FC = () => {
       >
         <Toolbar /> {/* Пространство для AppBar */}
         <Box sx={{ p: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main', mb: 3 }}>
-            FINANCE APP
-          </Typography>
+          {/* Удалено старое название "FINANCE APP" */}
           
           <List sx={{ mt: 2 }}>
             {menuItems.map((item) => (

@@ -37,11 +37,13 @@ export interface Transaction {
   typeOperation: TransactionType;
   transactionDate?: string;
   
-  // Дополнительные поля для совместимости с формой и другими компонентами
+  // Маппинг полей для совместимости фронтенда и бэкенда
   amount?: number;
   description?: string;
   categoryId?: number;
   type?: TransactionType;
+  status?: string;
+  recipientName?: string;
 }
 
 const TRANSACTION_ENDPOINTS = {
@@ -59,8 +61,9 @@ const TRANSACTION_ENDPOINTS = {
 class TransactionService {
   async getAllTransactions(): Promise<Transaction[]> {
     try {
-      const response = await api.get(TRANSACTION_ENDPOINTS.BASE);
-      return response.data;
+      const response = await api.get('/api/transactions/get-all-tr');
+      console.log('Получены транзакции:', response.data);
+      return this._normalizeTransactions(response.data);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
       throw error;
@@ -153,8 +156,11 @@ class TransactionService {
 
   async createTransaction(transaction: Transaction): Promise<Transaction> {
     try {
-      const response = await api.post(TRANSACTION_ENDPOINTS.BASE, transaction);
-      return response.data;
+      // Нормализуем данные перед отправкой на бэкенд
+      const transactionForBackend = this._prepareTransactionForBackend(transaction);
+      console.log('Отправляем на бэкенд транзакцию:', transactionForBackend);
+      const response = await api.post(TRANSACTION_ENDPOINTS.BASE, transactionForBackend);
+      return this._normalizeTransactionFromBackend(response.data);
     } catch (error) {
       console.error('Failed to create transaction:', error);
       throw error;
@@ -229,6 +235,96 @@ class TransactionService {
       console.error(`Failed to delete transaction with id ${id}:`, error);
       throw error;
     }
+  }
+
+  // Приватный метод для нормализации транзакций с бэкенда
+  private _normalizeTransactions(transactions: any[]): Transaction[] {
+    console.log('Нормализация транзакций, исходные данные:', transactions);
+    if (!Array.isArray(transactions)) {
+      console.error('Ожидался массив транзакций, получено:', transactions);
+      return [];
+    }
+    const normalized = transactions.map(trans => this._normalizeTransactionFromBackend(trans));
+    console.log('Нормализованные транзакции:', normalized);
+    return normalized;
+  }
+
+  // Преобразует транзакцию с бэкенда в формат для фронтенда
+  private _normalizeTransactionFromBackend(transaction: any): Transaction {
+    if (!transaction) return {} as Transaction;
+    
+    // Инвертируем типы транзакций:
+    // На бэкенде DEBIT - это расход, а CREDIT - это доход
+    // Но на фронтенде нужно отображать наоборот
+    let transactionType = transaction.transactionType || transaction.type || transaction.typeOperation;
+    
+    // Инвертируем тип транзакции
+    if (transactionType === 'DEBIT') {
+      transactionType = 'CREDIT'; // DEBIT (фактический доход) -> отображаем как CREDIT (доход)
+    } else if (transactionType === 'CREDIT') {
+      transactionType = 'DEBIT'; // CREDIT (фактический расход) -> отображаем как DEBIT (расход)
+    }
+    
+    // Убедимся, что categoryId есть и в правильном формате
+    let categoryId = transaction.categoryId;
+    if (transaction.category && !categoryId) {
+      // Если есть строковая категория, но нет ID - пробуем преобразовать
+      const categoryFromString = parseInt(transaction.category);
+      if (!isNaN(categoryFromString)) {
+        categoryId = categoryFromString;
+      }
+    }
+    
+    // Убедимся, что дата в правильном формате
+    let transactionDate = transaction.transactionDate;
+    if (!transactionDate) {
+      // Если нет даты, установим текущую
+      transactionDate = new Date().toISOString();
+    }
+    
+    return {
+      ...transaction,
+      // Маппим поля для совместимости
+      amount: transaction.sum || transaction.amount,
+      description: transaction.comment || transaction.description,
+      type: transactionType,
+      // Обеспечиваем совместимость с интерфейсом Transaction
+      personType: transaction.personType || 'PERSON_TYPE',
+      inn: transaction.inn || '000000000000',
+      personTypeRecipient: transaction.personTypeRecipient || 'PERSON_TYPE',
+      innRecipient: transaction.innRecipient || '000000000000',
+      nameBank: transaction.nameBank || '',
+      nameBankRecip: transaction.nameBankRecip || '',
+      billRecip: transaction.billRecip || '',
+      rBillRecip: transaction.rBillRecip || '',
+      typeOperation: transactionType,
+      sum: transaction.sum || transaction.amount || 0,
+      // Установим и categoryId и category для совместимости
+      categoryId: categoryId || (transaction.category ? parseInt(transaction.category) : undefined),
+      category: transaction.category || (categoryId ? categoryId.toString() : ''),
+      // Установим дату транзакции
+      transactionDate: transactionDate,
+    };
+  }
+
+  // Подготавливает транзакцию для отправки на бэкенд
+  private _prepareTransactionForBackend(transaction: Transaction): any {
+    const backendTransaction = { ...transaction };
+    
+    // Устанавливаем все обязательные поля для бэкенда
+    backendTransaction.sum = transaction.amount || transaction.sum;
+    backendTransaction.comment = transaction.description || transaction.comment;
+    
+    // Инвертируем тип транзакции для бэкенда
+    if (transaction.type === 'DEBIT') {
+      backendTransaction.transactionType = 'CREDIT'; // На фронте DEBIT (расход) -> на бэкенде CREDIT
+      backendTransaction.typeOperation = 'CREDIT';
+    } else if (transaction.type === 'CREDIT') {
+      backendTransaction.transactionType = 'DEBIT'; // На фронте CREDIT (доход) -> на бэкенде DEBIT
+      backendTransaction.typeOperation = 'DEBIT';
+    }
+    
+    return backendTransaction;
   }
 }
 
