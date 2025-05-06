@@ -7,7 +7,6 @@ interface TransactionsState {
   loading: boolean;
   error: string | null;
   filters: {
-    status?: string;
     type?: string;
     categoryId?: number;
     dateFrom?: string;
@@ -33,18 +32,6 @@ export const fetchAllTransactions = createAsyncThunk(
       return await transactionService.getAllTransactions();
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch transactions';
-      return rejectWithValue(message);
-    }
-  }
-);
-
-export const fetchTransactionsByStatus = createAsyncThunk(
-  'transactions/fetchByStatus',
-  async (status: Transaction['status'], { rejectWithValue }) => {
-    try {
-      return await transactionService.getTransactionsByStatus(status);
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || `Failed to fetch ${status} transactions`;
       return rejectWithValue(message);
     }
   }
@@ -167,20 +154,6 @@ const transactionsSlice = createSlice({
         state.loading = false;
       })
       .addCase(fetchAllTransactions.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Fetch transactions by status
-      .addCase(fetchTransactionsByStatus.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchTransactionsByStatus.fulfilled, (state, action: PayloadAction<Transaction[]>) => {
-        state.items = action.payload;
-        state.loading = false;
-      })
-      .addCase(fetchTransactionsByStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })

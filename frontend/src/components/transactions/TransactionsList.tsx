@@ -38,7 +38,6 @@ import { useAppDispatch, useAppSelector } from '../../hooks/reduxHooks';
 import {
   fetchAllTransactions,
   fetchTransactionsByType,
-  fetchTransactionsByStatus,
   fetchTransactionsByCategory,
   deleteTransaction,
   setFilters,
@@ -130,10 +129,10 @@ const TransactionRow = React.memo(({
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            color: transaction.type === 'CREDIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
           }}
         >
-          {transaction.type === 'CREDIT' ? <TrendingDown /> : <TrendingUp />}
+          {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
         </Box>
       </TableCell>
       <TableCell>
@@ -153,11 +152,11 @@ const TransactionRow = React.memo(({
       <TableCell>
         <Typography 
           sx={{ 
-            color: transaction.type === 'CREDIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
             fontWeight: 600,
           }}
         >
-          {transaction.type === 'CREDIT' ? '-' : '+'}
+          {transaction.type === 'DEBIT' ? '-' : '+'}
           {transaction.amount ? formatCurrency(transaction.amount) : '₽0'}
         </Typography>
       </TableCell>
@@ -224,6 +223,11 @@ const TransactionsList: React.FC = () => {
     dispatch(fetchAllCategories());
   }, [dispatch]);
   
+  // Эффект для отладки фильтров
+  useEffect(() => {
+    console.log('Текущие фильтры:', filters);
+  }, [filters]);
+  
   // Handle pagination
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -256,12 +260,67 @@ const TransactionsList: React.FC = () => {
     ? transactions.filter(transaction => {
         if (!transaction) return false;
         const searchTermLower = searchTerm.toLowerCase();
-        return (
+        
+        // Проверяем основное условие поиска по тексту
+        const matchesSearchTerm = (
           (transaction.description || '').toLowerCase().includes(searchTermLower) ||
           (transaction.recipientName || '').toLowerCase().includes(searchTermLower) ||
           (transaction.nameBankRecip || '').toLowerCase().includes(searchTermLower) ||
           (transaction.amount?.toString() || '').includes(searchTermLower)
         );
+        
+        // Проверяем фильтры
+        const matchesTypeFilter = !filters.type || transaction.type === filters.type;
+        const matchesCategoryFilter = !filters.categoryId || 
+                                   String(transaction.categoryId) === String(filters.categoryId);
+        
+        // Проверка диапазона дат
+        let matchesDateRangeFilter = true;
+        if (filters.dateFrom || filters.dateTo) {
+          const transactionDate = transaction.transactionDate 
+            ? new Date(transaction.transactionDate) 
+            : null;
+            
+          if (transactionDate) {
+            if (filters.dateFrom) {
+              const fromDate = new Date(filters.dateFrom);
+              fromDate.setHours(0, 0, 0, 0);
+              if (transactionDate < fromDate) {
+                matchesDateRangeFilter = false;
+              }
+            }
+            
+            if (filters.dateTo) {
+              const toDate = new Date(filters.dateTo);
+              toDate.setHours(23, 59, 59, 999);
+              if (transactionDate > toDate) {
+                matchesDateRangeFilter = false;
+              }
+            }
+          } else if (filters.dateFrom || filters.dateTo) {
+            // Если у транзакции нет даты, а фильтр по дате активен
+            matchesDateRangeFilter = false;
+          }
+        }
+        
+        // Проверка диапазона сумм
+        let matchesAmountRangeFilter = true;
+        const amount = transaction.amount || 0;
+        
+        if (filters.amountMin !== undefined && amount < filters.amountMin) {
+          matchesAmountRangeFilter = false;
+        }
+        
+        if (filters.amountMax !== undefined && amount > filters.amountMax) {
+          matchesAmountRangeFilter = false;
+        }
+        
+        // Результат фильтрации - должны выполняться все условия
+        return matchesSearchTerm && 
+               matchesTypeFilter && 
+               matchesCategoryFilter && 
+               matchesDateRangeFilter && 
+               matchesAmountRangeFilter;
       })
     : [];
   
@@ -368,6 +427,7 @@ const TransactionsList: React.FC = () => {
             </Typography>
             <TransactionsFilter 
               onApplyFilters={(filters: TransactionFilters) => {
+                console.log('Применение фильтров:', filters);
                 dispatch(setFilters(filters));
                 setShowFilters(false);
               }}

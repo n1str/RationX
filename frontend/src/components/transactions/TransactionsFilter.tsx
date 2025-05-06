@@ -31,13 +31,25 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
 }) => {
   const [filters, setFilters] = useState({
     type: currentFilters.type || '',
-    status: currentFilters.status || '',
     categoryId: currentFilters.categoryId || '',
     dateFrom: currentFilters.dateFrom ? new Date(currentFilters.dateFrom) : null,
     dateTo: currentFilters.dateTo ? new Date(currentFilters.dateTo) : null,
     amountMin: currentFilters.amountMin || '',
     amountMax: currentFilters.amountMax || '',
   });
+
+  // Когда компонент монтируется, запоминаем исходные фильтры
+  useEffect(() => {
+    console.log('Получены текущие фильтры:', currentFilters);
+    setFilters({
+      type: currentFilters.type || '',
+      categoryId: currentFilters.categoryId || '',
+      dateFrom: currentFilters.dateFrom ? new Date(currentFilters.dateFrom) : null,
+      dateTo: currentFilters.dateTo ? new Date(currentFilters.dateTo) : null,
+      amountMin: currentFilters.amountMin || '',
+      amountMax: currentFilters.amountMax || '',
+    });
+  }, [currentFilters]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -54,6 +66,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
   };
 
   const handleApplyFilters = () => {
+    console.log('Применяем фильтры, текущие значения:', filters);
     const formattedFilters = {
       ...filters,
       dateFrom: filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : undefined,
@@ -71,75 +84,61 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
       }
     });
 
+    console.log('Отформатированные фильтры для применения:', formattedFilters);
     onApplyFilters(formattedFilters);
   };
 
   const handleResetFilters = () => {
-    setFilters({
+    console.log('Сбрасываем фильтры');
+    const resetFilters = {
       type: '',
-      status: '',
       categoryId: '',
       dateFrom: null,
       dateTo: null,
       amountMin: '',
       amountMax: '',
-    });
+    };
+    setFilters(resetFilters);
+    // Сразу применяем сброшенные фильтры
+    onApplyFilters({});
   };
 
   return (
     <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
       <Typography variant="subtitle1" fontWeight={600} mb={2}>
-        Filter Transactions
+        Фильтрация транзакций
       </Typography>
       <Divider sx={{ mb: 2 }} />
       
       <Stack spacing={2}>
         <Stack direction="row" spacing={2}>
           <FormControl fullWidth variant="outlined" size="small">
-            <InputLabel id="type-label">Transaction Type</InputLabel>
+            <InputLabel id="type-label">Тип транзакции</InputLabel>
             <Select
               labelId="type-label"
               id="type"
               name="type"
               value={filters.type}
-              label="Transaction Type"
+              label="Тип транзакции"
               onChange={handleSelectChange}
             >
-              <MenuItem value="">All Types</MenuItem>
-              <MenuItem value="CREDIT">Expense</MenuItem>
-              <MenuItem value="DEBIT">Income</MenuItem>
+              <MenuItem value="">Все типы</MenuItem>
+              <MenuItem value="DEBIT">Расход</MenuItem>
+              <MenuItem value="CREDIT">Доход</MenuItem>
             </Select>
           </FormControl>
           
           <FormControl fullWidth variant="outlined" size="small">
-            <InputLabel id="status-label">Status</InputLabel>
-            <Select
-              labelId="status-label"
-              id="status"
-              name="status"
-              value={filters.status}
-              label="Status"
-              onChange={handleSelectChange}
-            >
-              <MenuItem value="">All Statuses</MenuItem>
-              <MenuItem value="COMPLETED">Completed</MenuItem>
-              <MenuItem value="PENDING">Pending</MenuItem>
-              <MenuItem value="FAILED">Failed</MenuItem>
-              <MenuItem value="CANCELLED">Cancelled</MenuItem>
-            </Select>
-          </FormControl>
-          
-          <FormControl fullWidth variant="outlined" size="small">
-            <InputLabel id="category-label">Category</InputLabel>
+            <InputLabel id="category-label">Категория</InputLabel>
             <Select
               labelId="category-label"
               id="categoryId"
               name="categoryId"
               value={filters.categoryId}
-              label="Category"
+              label="Категория"
               onChange={handleSelectChange}
             >
-              <MenuItem value="">All Categories</MenuItem>
+              <MenuItem value="">Все категории</MenuItem>
               {categories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
                   {category.name}
@@ -147,30 +146,32 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
               ))}
             </Select>
           </FormControl>
+        </Stack>
+        
+        <Stack direction="row" spacing={2}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
+            <DatePicker
+              label="С даты"
+              value={filters.dateFrom}
+              onChange={(date) => handleDateChange('dateFrom', date)}
+              slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+            />
+          </LocalizationProvider>
           
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
             <DatePicker
-              label="From Date"
-              value={filters.dateFrom}
-              onChange={(date) => handleDateChange('dateFrom', date)}
+              label="По дату"
+              value={filters.dateTo}
+              onChange={(date) => handleDateChange('dateTo', date)}
               slotProps={{ textField: { fullWidth: true, size: 'small' } }}
             />
           </LocalizationProvider>
         </Stack>
         
         <Stack direction="row" spacing={2}>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
-            <DatePicker
-              label="To Date"
-              value={filters.dateTo}
-              onChange={(date) => handleDateChange('dateTo', date)}
-              slotProps={{ textField: { fullWidth: true, size: 'small' } }}
-            />
-          </LocalizationProvider>
-          
           <TextField
             fullWidth
-            label="Min Amount"
+            label="Мин. сумма"
             name="amountMin"
             type="number"
             size="small"
@@ -183,7 +184,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
           
           <TextField
             fullWidth
-            label="Max Amount"
+            label="Макс. сумма"
             name="amountMax"
             type="number"
             size="small"
@@ -202,7 +203,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
             onClick={handleResetFilters}
             sx={{ mr: 2, borderRadius: 2 }}
           >
-            Reset
+            Сбросить
           </Button>
           <Button 
             variant="contained" 
@@ -210,7 +211,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
             onClick={handleApplyFilters}
             sx={{ borderRadius: 2 }}
           >
-            Apply Filters
+            Применить
           </Button>
         </Stack>
       </Stack>
