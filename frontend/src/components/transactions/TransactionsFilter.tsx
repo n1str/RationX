@@ -123,8 +123,8 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
               onChange={handleSelectChange}
             >
               <MenuItem value="">Все типы</MenuItem>
-              <MenuItem value="DEBIT">Расход</MenuItem>
-              <MenuItem value="CREDIT">Доход</MenuItem>
+              <MenuItem value="CREDIT">Расход</MenuItem>
+              <MenuItem value="DEBIT">Доход</MenuItem>
             </Select>
           </FormControl>
           

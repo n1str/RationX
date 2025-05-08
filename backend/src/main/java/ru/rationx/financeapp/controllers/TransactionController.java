@@ -46,7 +46,13 @@ public class TransactionController {
             
             List<Transaction> transactions = transactionService.getAllTransactions();
             log.info("Retrieved {} transactions", transactions.size());
-            return ResponseEntity.ok(transactions);
+            
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving all transactions: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -70,7 +76,12 @@ public class TransactionController {
                 log.info("Retrieved all {} transactions (no status filter)", transactions.size());
             }
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by status {}: {}", status, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -87,7 +98,12 @@ public class TransactionController {
             List<Transaction> transactions = transactionService.getTransactionsByRecipientInn(inn);
             log.info("Retrieved {} transactions with recipient INN {}", transactions.size(), inn);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by recipient INN {}: {}", inn, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -111,7 +127,12 @@ public class TransactionController {
                 log.info("Retrieved all {} transactions (no type filter)", transactions.size());
             }
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by type {}: {}", type, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -128,7 +149,12 @@ public class TransactionController {
             List<Transaction> transactions = transactionService.getTransactionsByCategory(categoryId);
             log.info("Retrieved {} transactions with category ID {}", transactions.size(), categoryId);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by category ID {}: {}", categoryId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -145,7 +171,12 @@ public class TransactionController {
             List<Transaction> transactions = transactionService.getTransactionsBySenderBank(bank);
             log.info("Retrieved {} transactions with sender bank {}", transactions.size(), bank);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by sender bank {}: {}", bank, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -162,7 +193,12 @@ public class TransactionController {
             List<Transaction> transactions = transactionService.getTransactionsByRecipientBank(bank);
             log.info("Retrieved {} transactions with recipient bank {}", transactions.size(), bank);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by recipient bank {}: {}", bank, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -183,7 +219,12 @@ public class TransactionController {
             log.info("Retrieved {} transactions in date range from {} to {}", 
                     transactions.size(), startDate, endDate);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by date range from {} to {}: {}", 
                     startDate, endDate, e.getMessage(), e);
@@ -205,7 +246,12 @@ public class TransactionController {
             log.info("Retrieved {} transactions in amount range from {} to {}", 
                     transactions.size(), minAmount, maxAmount);
             
-            return ResponseEntity.ok(transactions);
+            // Преобразуем все транзакции в DTO
+            List<LiteTransactionDTO> transactionDTOs = transactions.stream()
+                    .map(transactionMapper::toDTO)
+                    .toList();
+            
+            return ResponseEntity.ok(transactionDTOs);
         } catch (Exception e) {
             log.error("Error retrieving transactions by amount range from {} to {}: {}", 
                     minAmount, maxAmount, e.getMessage(), e);
@@ -223,7 +269,8 @@ public class TransactionController {
             Transaction transaction = transactionService.getTransactionById(id);
             if (transaction != null) {
                 log.info("Retrieved transaction with ID {}", id);
-                return ResponseEntity.ok(transaction);
+                LiteTransactionDTO transactionDTO = transactionMapper.toDTO(transaction);
+                return ResponseEntity.ok(transactionDTO);
             } else {
                 log.info("Transaction with ID {} not found", id);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -259,7 +306,9 @@ public class TransactionController {
             Transaction savedTransaction = transactionService.create(transaction, principal);
             log.info("Created transaction with ID {}", savedTransaction.getId());
             
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
+            // Используем TransactionMapper для преобразования в DTO
+            LiteTransactionDTO transactionDTO = transactionMapper.toDTO(savedTransaction);
+            return ResponseEntity.status(HttpStatus.CREATED).body(transactionDTO);
         } catch (Exception e) {
             log.error("Error creating transaction: {}", e.getMessage(), e);
             return ResponseEntity.badRequest()
@@ -279,7 +328,9 @@ public class TransactionController {
             Transaction transaction = transactionService.update(id, updatedTransaction);
             log.info("Updated transaction with ID {}", id);
             
-            return ResponseEntity.ok(transaction);
+            // Используем TransactionMapper для преобразования в DTO
+            LiteTransactionDTO transactionDTO = transactionMapper.toDTO(transaction);
+            return ResponseEntity.ok(transactionDTO);
     }
     
     @DeleteMapping("/{id}")

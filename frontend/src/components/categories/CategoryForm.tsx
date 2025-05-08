@@ -232,8 +232,8 @@ const CategoryForm: React.FC = () => {
                     onChange={handleChange as any}
                     label="Тип категории"
                   >
-                    <MenuItem value="DEBIT">Расход</MenuItem>
-                    <MenuItem value="CREDIT">Доход</MenuItem>
+                    <MenuItem value="CREDIT">Расход</MenuItem>
+                    <MenuItem value="DEBIT">Доход</MenuItem>
                   </Select>
                   {formErrors.type && (
                     <FormHelperText>{formErrors.type}</FormHelperText>

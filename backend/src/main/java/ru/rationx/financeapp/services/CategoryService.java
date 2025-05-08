@@ -55,12 +55,29 @@ public class CategoryService {
 
     public Category findOrCreateCategory(String category, TransactionType transactionType){
         try {
-            Category cat = categoryRepository.findByNameIgnoreCaseAndApplicableType(category, transactionType)
+            // Сначала проверим, не является ли категория числом (то есть ID)
+            try {
+                Long categoryId = Long.parseLong(category);
+                // Если это число, пробуем найти категорию по ID
+                Optional<Category> existingCategory = categoryRepository.findById(categoryId);
+                if (existingCategory.isPresent()) {
+                    log.info("Найдена категория по ID: {}", categoryId);
+                    return existingCategory.get();
+                }
+                // Если категория с таким ID не найдена, продолжаем и создадим категорию с правильным именем
+                log.warn("Категория с ID {} не найдена, будет создана новая", categoryId);
+            } catch (NumberFormatException e) {
+                // Если это не число, продолжаем обычный поиск по имени
+                log.debug("Передано не числовое значение для категории: {}", category);
+            }
+            
+            // Пытаемся найти категорию по имени (игнорируя регистр)
+            Category cat = categoryRepository.findByNameIgnoreCase(category)
                     .orElseThrow(() -> new DoNotFoundCategory("Категория не найдена"));
             return cat;
 
         } catch (DoNotFoundCategory ex) {
-            log.info(ex.getMessage());
+            log.info(ex.getMessage() + ": Создаем новую категорию - {}", category);
             Category cat = Category.builder()
                     .applicableType(transactionType)
                     .name(category)

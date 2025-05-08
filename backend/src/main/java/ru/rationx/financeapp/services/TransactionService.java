@@ -7,6 +7,7 @@ import ru.rationx.financeapp.models.bank.Bank;
 import ru.rationx.financeapp.models.dto.transaction.TransactionDTO;
 import ru.rationx.financeapp.models.subject.Subject;
 import ru.rationx.financeapp.models.transaction.*;
+import ru.rationx.financeapp.models.user.User;
 import ru.rationx.financeapp.repository.TransactionRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -20,6 +21,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.time.ZoneId;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -161,6 +164,41 @@ public class TransactionService {
             return transactionRepository.findByAmountBetween(minAmount, maxAmount);
         } catch (Exception e) {
             log.error("Error while getting transactions by amount range: " + minAmount + " - " + maxAmount, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Получить транзакции по диапазону дат и имени пользователя
+     */
+    public List<Transaction> getTransactionsByDateRange(String username, Date startDate, Date endDate) {
+        try {
+            // Преобразуем Date в LocalDateTime для сравнения
+            LocalDateTime startDateTime = startDate.toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
+            
+            LocalDateTime endDateTime = endDate.toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
+            
+            // Сначала получаем все транзакции пользователя
+            User user = userService.getUser(username);
+            List<Transaction> userTransactions = getByUserId(user.getId());
+            
+            // Затем фильтруем по диапазону дат
+            return userTransactions.stream()
+                    .filter(tx -> {
+                        if (tx.getDateTime() == null) return false;
+                        
+                        // Проверяем вхождение в диапазон
+                        return !tx.getDateTime().isBefore(startDateTime) && !tx.getDateTime().isAfter(endDateTime);
+                    })
+                    .collect(Collectors.toList());
+            
+        } catch (Exception e) {
+            log.error("Error while getting transactions by date range for user {}: {} - {}", 
+                    username, startDate, endDate, e);
             return Collections.emptyList();
         }
     }

@@ -88,9 +88,9 @@ const CategoriesList: React.FC = () => {
     if (tabValue === 0) {
       dispatch(fetchAllCategories());
     } else if (tabValue === 1) {
-      dispatch(fetchCategoriesByType('DEBIT'));
-    } else if (tabValue === 2) {
       dispatch(fetchCategoriesByType('CREDIT'));
+    } else if (tabValue === 2) {
+      dispatch(fetchCategoriesByType('DEBIT'));
     }
   }, [dispatch, tabValue]);
   
@@ -143,8 +143,8 @@ const CategoriesList: React.FC = () => {
     ? (tabValue === 0
         ? filteredCategories
         : tabValue === 1
-          ? filteredCategories.filter(cat => cat?.type === 'DEBIT')
-          : filteredCategories.filter(cat => cat?.type === 'CREDIT'))
+          ? filteredCategories.filter(cat => cat?.type === 'CREDIT')
+          : filteredCategories.filter(cat => cat?.type === 'DEBIT'))
     : [];
   
   const containerVariants = {
@@ -405,8 +405,8 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
                     {category.name}
                   </Typography>
                   <Chip 
-                    label={category.type === 'DEBIT' ? 'Расход' : 'Доход'} 
-                    color={category.type === 'DEBIT' ? 'error' : 'success'}
+                    label={category.type === 'CREDIT' ? 'Расход' : 'Доход'} 
+                    color={category.type === 'CREDIT' ? 'error' : 'success'}
                     size="small"
                     sx={{ height: 22, fontSize: 11 }}
                   />

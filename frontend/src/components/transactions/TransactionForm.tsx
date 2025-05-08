@@ -333,7 +333,8 @@ const TransactionForm: React.FC = () => {
         // Синхронизируем старые и новые поля
         comment: formData.comment || formData.description || '',
         description: formData.description || formData.comment || '',
-        category: formData.category || (formData.categoryId ? formData.categoryId.toString() : '0'),
+        // Используем ID категории в поле category для совместимости с бэкендом
+        category: formData.categoryId ? formData.categoryId.toString() : (formData.category || '0'),
         categoryId: formData.categoryId || (formData.category ? parseInt(formData.category) : 0),
         transactionType: formData.transactionType || formData.type || 'DEBIT',
         typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
@@ -535,7 +536,7 @@ const TransactionForm: React.FC = () => {
                   sx={{ maxWidth: 400, mx: 'auto' }}
                 >
                   <ToggleButton 
-                    value="CREDIT" 
+                    value="DEBIT" 
                     sx={{ 
                       py: 1.5, 
                       borderRadius: '12px 0 0 12px',
@@ -553,7 +554,7 @@ const TransactionForm: React.FC = () => {
                     Доход
                   </ToggleButton>
                   <ToggleButton 
-                    value="DEBIT" 
+                    value="CREDIT" 
                     sx={{ 
                       py: 1.5, 
                       borderRadius: '0 12px 12px 0',
@@ -1198,6 +1199,7 @@ const TransactionForm: React.FC = () => {
                       return <Typography color="text.secondary">Выберите категорию</Typography>;
                     }
                     const category = categories.find((cat) => cat.id && cat.id.toString() === selected);
+                    console.log(`Выбрана категория: ID=${selected}, найдена:`, category);
                     return category ? category.name : 'Без категории';
                   }}
                   error={!!formErrors.category}
