@@ -221,14 +221,14 @@ public class PdfGenerator {
         // Создаем красивые ячейки для основных показателей
         // 1. Баланс (разница между доходами и расходами)
 
-        double shit = totalExpenses - totalIncome;
+        double shit = totalIncome - totalExpenses;
         addKeyValueCell(summaryTable, "Общий баланс (доходы - расходы)", formatCurrency(shit), shit >= 0 ? INCOME_COLOR : EXPENSE_COLOR);
 
-        // 2. Общий доход (DEBIT транзакции)
-        addKeyValueCell(summaryTable, "Сумма всех доходов (DEBIT)", formatCurrency(totalExpenses), INCOME_COLOR);
+        // 2. Общий доход (DEBIT транзакции) Сумма всех доходов (DEBIT)
+        addKeyValueCell(summaryTable, "Сумма всех доходов (DEBIT)", formatCurrency(totalIncome), INCOME_COLOR);
 
-        // 3. Общие расходы (CREDIT транзакции)
-        addKeyValueCell(summaryTable, "Сумма всех расходов (CREDIT)", formatCurrency(totalIncome), EXPENSE_COLOR);
+        // 3. Общие расходы (CREDIT транзакции) Сумма всех расходов (CREDIT)
+        addKeyValueCell(summaryTable, "Сумма всех расходов (CREDIT)", formatCurrency(totalExpenses), EXPENSE_COLOR);
 
         // 4. Всего транзакций за период
         addKeyValueCell(summaryTable, "Количество транзакций за период", String.valueOf(transactionCount), PRIMARY_COLOR);
@@ -530,7 +530,7 @@ public class PdfGenerator {
 
                 // Чередуем цвета строк для улучшения читаемости
                 BaseColor rowColor = (rowNum % 2 == 0) ? BaseColor.WHITE : LIGHT_GRAY;
-                BaseColor textColor = "CREDIT".equals(typeCode) ? INCOME_COLOR : EXPENSE_COLOR;
+                BaseColor textColor = "CREDIT".equals(typeCode) ? EXPENSE_COLOR : INCOME_COLOR;
 
                 // ID
                 PdfPCell idCell = new PdfPCell(new Phrase(String.valueOf(tx.getId()), getBaseFont(10, false)));
@@ -656,8 +656,8 @@ public class PdfGenerator {
      * Преобразует тип транзакции в читаемый текст
      */
     private String getTransactionTypeText(String type) {
-        if ("CREDIT".equals(type)) return "Доход";
-        if ("DEBIT".equals(type)) return "Расход";
+        if ("CREDIT".equals(type)) return "Расход";
+        if ("DEBIT".equals(type)) return "Доход";
         return type;
     }
 

@@ -61,6 +61,16 @@ import { Category } from '../../services/categoryService';
 const PERSON_TYPE: PersonType = 'PERSON_TYPE';
 const LEGAL_TYPE: PersonType = 'LEGAL';
 
+// Доступные статусы транзакций для выбора (исключая DELETED)
+const TRANSACTION_STATUSES = [
+  { value: 'NEW', label: 'Новая' },
+  { value: 'ACCEPTED', label: 'Подтверждена' },
+  { value: 'PROCESSING', label: 'В обработке' },
+  { value: 'PAYMENT_COMPLETED', label: 'Платеж выполнен' },
+  { value: 'CANCELED', label: 'Отменена' },
+  { value: 'RETURN', label: 'Возврат' }
+];
+
 // Создаем специальный интерфейс для нашей формы
 interface TransactionFormData {
   id?: number;
@@ -112,6 +122,7 @@ interface TransactionFormData {
   nameBankRecip?: string;   // Старое поле для nameBankRecipient
   billRecip?: string;       // Старое поле для billRecipient
   rBillRecip?: string;      // Старое поле для rbillRecipient
+  status?: string;
 }
 
 const initialFormState: TransactionFormData = {
@@ -151,6 +162,9 @@ const initialFormState: TransactionFormData = {
   billRecipient: '40817810000000000002',
   rbillRecipient: '30101810400000000226',
   
+  // Статус транзакции
+  status: 'NEW',
+  
   // Для совместимости с формой
   amount: 0,
   description: ''
@@ -168,6 +182,7 @@ interface FormErrors {
   transactionType?: string;
   typeOperation?: string;
   type?: string;
+  status?: string;
   
   // Поля отправителя
   personType?: string;
@@ -225,13 +240,13 @@ const TransactionFormModal: React.FC = () => {
   // Группируем категории для удобного отображения
   const expenseCategories = React.useMemo(() => {
     return Array.isArray(categories) 
-      ? categories.filter(category => category.type === 'CREDIT' || category.applicableType === 'CREDIT')
+      ? categories.filter(category => category.type === 'DEBIT' || category.applicableType === 'DEBIT')
       : [];
   }, [categories]);
     
   const incomeCategories = React.useMemo(() => {
     return Array.isArray(categories) 
-      ? categories.filter(category => category.type === 'DEBIT' || category.applicableType === 'DEBIT')
+      ? categories.filter(category => category.type === 'CREDIT' || category.applicableType === 'CREDIT')
       : [];
   }, [categories]);
   
@@ -561,7 +576,7 @@ const TransactionFormModal: React.FC = () => {
         
         // Данные транзакции
         category: formData.category || '', // Используем строковое представление категории
-        status: isEditing ? (selectedTransaction?.status || 'NEW') : 'NEW' // Если новая транзакция, то статус NEW
+        status: isEditing ? (formData.status || 'NEW') : 'NEW' // Если новая транзакция, то статус NEW
       };
       
       // Проверяем наличие токена авторизации
@@ -716,7 +731,7 @@ const TransactionFormModal: React.FC = () => {
                 disabled={isSaving}
               >
                 <ToggleButton 
-                  value="CREDIT" 
+                  value="DEBIT" 
                   sx={{ 
                     py: 0.75,
                     color: 'success.main',
@@ -730,7 +745,7 @@ const TransactionFormModal: React.FC = () => {
                   Доход
                 </ToggleButton>
                 <ToggleButton 
-                  value="DEBIT" 
+                  value="CREDIT" 
                   sx={{ 
                     py: 0.75,
                     color: 'error.main',
@@ -838,6 +853,48 @@ const TransactionFormModal: React.FC = () => {
                   />
                 </FormControl>
 
+                {/* Поле выбора статуса транзакции, только при редактировании */}
+                {isEditing && (
+                  <FormControl fullWidth>
+                    <InputLabel id="transaction-status-label">Статус транзакции</InputLabel>
+                    <Select
+                      labelId="transaction-status-label"
+                      id="transaction-status"
+                      name="status"
+                      value={formData.status || 'NEW'}
+                      onChange={handleChange as any}
+                      label="Статус транзакции"
+                      size="small"
+                      disabled={isSaving}
+                    >
+                      {TRANSACTION_STATUSES.map((status) => (
+                        <MenuItem key={status.value} value={status.value}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                mr: 1,
+                                bgcolor: 
+                                  status.value === 'NEW' ? 'primary.main' :
+                                  status.value === 'ACCEPTED' ? 'info.main' :
+                                  status.value === 'PROCESSING' ? 'warning.main' :
+                                  status.value === 'COMPLETED' ? 'success.main' :
+                                  status.value === 'CANCELED' ? 'error.main' :
+                                  status.value === 'PAYMENT_COMPLETED' ? 'success.dark' :
+                                  status.value === 'FAILED' ? 'error.dark' :
+                                  status.value === 'RETURN' ? 'secondary.main' : 'grey.500'
+                              }}
+                            />
+                            {status.label}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
                 <FormControl fullWidth error={!!formErrors.categoryId}>
                   <InputLabel id="transaction-category-label">Категория</InputLabel>
                   <Select
@@ -879,7 +936,7 @@ const TransactionFormModal: React.FC = () => {
                     disabled={isSaving}
                     renderValue={(selected) => (
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <CategoryIcon sx={{ mr: 1, color: formData.type === 'DEBIT' ? 'error.main' : 'success.main' }} />
+                        <CategoryIcon sx={{ mr: 1, color: formData.type === 'DEBIT' ? 'success.main' : 'error.main' }} />
                         {getCategoryNameById(selected as number)}
                       </Box>
                     )}

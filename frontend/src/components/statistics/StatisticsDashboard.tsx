@@ -1177,59 +1177,10 @@ const StatisticsDashboard: React.FC = () => {
         {/* Charts Row 1 */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
           {/* Income vs Expenses */}
-          <Box sx={{ width: { xs: '100%', md: 'calc(66.666% - 12px)' } }}>
-            <motion.div variants={itemVariants}>
-              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                  Тренд доходов и расходов
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Месячное сравнение доходов и расходов
-                </Typography>
-                <Box sx={{ height: 350 }}>
-                  {renderIncomeExpenseChart()}
-                </Box>
-              </Paper>
-            </motion.div>
-          </Box>
-          
+
           {/* Expense Categories */}
-          <Box sx={{ width: { xs: '100%', md: 'calc(33.333% - 12px)' } }}>
-            <motion.div variants={itemVariants}>
-              <Paper sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                  Расходы по категориям
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Распределение расходов по категориям
-                </Typography>
-                <Box sx={{ height: 350 }}>
-                  {renderExpensesPieChart()}
-                </Box>
-              </Paper>
-            </motion.div>
-          </Box>
         </Box>
-        
         {/* Charts Row 2 */}
-        <Box>
-          {/* Transactions Trend */}
-          <Box sx={{ width: '100%' }}>
-            <motion.div variants={itemVariants}>
-              <Paper sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                  Тренд транзакций
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Количество транзакций за время
-                </Typography>
-                <Box sx={{ height: 350 }}>
-                  {renderTransactionsTrendChart()}
-                </Box>
-              </Paper>
-            </motion.div>
-          </Box>
-        </Box>
       </motion.div>
     </Box>
   );

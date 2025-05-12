@@ -51,7 +51,7 @@ import TransactionDetailsModal from './TransactionDetailsModal';
 interface TransactionFilters {
   type?: string;
   status?: string;
-  categoryId?: number;
+  categoryId?: string;
   fromDate?: Date | null;
   toDate?: Date | null;
   minAmount?: number | null;
@@ -95,7 +95,7 @@ const getCategoryById = (categoryId: string | number | undefined, categoriesList
   if (!categoryId || !Array.isArray(categoriesList) || categoriesList.length === 0) return null;
   
   // Для отладки
-  console.log('Ищем категорию с ID:', categoryId, 'Типа:', typeof categoryId);
+  console.log('Ищем категорию с ID/Name:', categoryId, 'Типа:', typeof categoryId);
   
   try {
     // Приводим ID категории к строке для сравнения
@@ -105,15 +105,19 @@ const getCategoryById = (categoryId: string | number | undefined, categoriesList
     let foundCategory = categoriesList.find(c => String(c.id) === categoryIdStr);
     
     // Если не нашли по ID, пробуем поискать по полю name (если categoryId - это название)
-    if (!foundCategory && typeof categoryId === 'string') {
-      foundCategory = categoriesList.find(c => c.name === categoryId);
+    if (!foundCategory) {
+      foundCategory = categoriesList.find(c => 
+        (typeof c.name === 'string') && 
+        (typeof categoryId === 'string') && 
+        c.name.toLowerCase() === categoryId.toLowerCase()
+      );
     }
     
     // Если не нашли никак, пытаемся найти категорию с тем же ID но в другом типе данных
     if (!foundCategory) {
       const categoryIdNum = parseInt(categoryIdStr);
       if (!isNaN(categoryIdNum)) {
-        foundCategory = categoriesList.find(c => c.id === categoryIdNum);
+        foundCategory = categoriesList.find(c => Number(c.id) === categoryIdNum);
       }
     }
     
@@ -250,7 +254,7 @@ const TransactionsList: React.FC = () => {
   
   // Состояние для модального окна с деталями транзакции
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   
   useEffect(() => {
     dispatch(fetchAllTransactions());
@@ -323,8 +327,33 @@ const TransactionsList: React.FC = () => {
         
         // Проверяем фильтры
         const matchesTypeFilter = !filters.type || transaction.type === filters.type;
-        const matchesCategoryFilter = !filters.categoryId || 
-                                   String(transaction.categoryId) === String(filters.categoryId);
+        
+        // Проверка по категории - поиск по ID категории
+        let matchesCategoryFilter = true;
+        if (filters.categoryId) {
+          // Получаем выбранную категорию по ID из фильтра
+          const selectedCategory = categories.find((cat: any) => String(cat.id) === String(filters.categoryId));
+          
+          if (!selectedCategory) {
+            console.log('Выбранная в фильтре категория не найдена:', filters.categoryId);
+            matchesCategoryFilter = false;
+          } else {
+            // Находим категорию транзакции по ID или по полю category
+            const transactionCategoryId = transaction.categoryId || transaction.category;
+            
+            if (!transactionCategoryId) {
+              // У транзакции нет категории
+              matchesCategoryFilter = false;
+            } else {
+              // Поиск категории транзакции в списке категорий
+              const transactionCategory = getCategoryById(transactionCategoryId, categories);
+              
+              // Сравниваем ID категорий
+              matchesCategoryFilter = transactionCategory ? 
+                String(transactionCategory.id) === String(selectedCategory.id) : false;
+            }
+          }
+        }
         
         // Проверка диапазона дат
         let matchesDateRangeFilter = true;
@@ -381,8 +410,9 @@ const TransactionsList: React.FC = () => {
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   
   // Обработчик для просмотра деталей транзакции
-  const handleViewTransactionDetails = (id: number) => {
-    setSelectedTransactionId(id);
+
+  const handleViewTransactionDetails = (name: string) => {
+    setSelectedTransactionId(name);
     setDetailsModalOpen(true);
   };
   
