@@ -125,6 +125,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
               <MenuItem value="">Все типы</MenuItem>
               <MenuItem value="CREDIT">Доход</MenuItem>
               <MenuItem value="DEBIT">Расход</MenuItem>
+
             </Select>
           </FormControl>
           

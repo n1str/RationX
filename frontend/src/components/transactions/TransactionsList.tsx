@@ -410,6 +410,7 @@ const TransactionsList: React.FC = () => {
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   
   // Обработчик для просмотра деталей транзакции
+
   const handleViewTransactionDetails = (name: string) => {
     setSelectedTransactionId(name);
     setDetailsModalOpen(true);
