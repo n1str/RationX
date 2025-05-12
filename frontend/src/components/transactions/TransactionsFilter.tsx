@@ -71,7 +71,7 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
       ...filters,
       dateFrom: filters.dateFrom ? filters.dateFrom.toISOString().split('T')[0] : undefined,
       dateTo: filters.dateTo ? filters.dateTo.toISOString().split('T')[0] : undefined,
-      categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
+      categoryId: filters.categoryId ? String(filters.categoryId) : undefined,
       amountMin: filters.amountMin ? Number(filters.amountMin) : undefined,
       amountMax: filters.amountMax ? Number(filters.amountMax) : undefined,
     };
@@ -123,8 +123,8 @@ const TransactionsFilter: React.FC<TransactionsFilterProps> = ({
               onChange={handleSelectChange}
             >
               <MenuItem value="">Все типы</MenuItem>
-              <MenuItem value="DEBIT">Расход</MenuItem>
               <MenuItem value="CREDIT">Доход</MenuItem>
+              <MenuItem value="DEBIT">Расход</MenuItem>
             </Select>
           </FormControl>
           

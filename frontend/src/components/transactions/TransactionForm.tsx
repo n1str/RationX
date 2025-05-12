@@ -56,6 +56,18 @@ import { Category } from '../../services/categoryService';
 const PERSON_TYPE: PersonType = 'PERSON_TYPE';
 const LEGAL_TYPE: PersonType = 'LEGAL';
 
+// Статусы транзакций
+const TRANSACTION_STATUSES = [
+  { value: 'NEW', label: 'Новая' },
+  { value: 'ACCEPTED', label: 'Подтверждена' },
+  { value: 'PROCESSING', label: 'В обработке' },
+  { value: 'COMPLETED', label: 'Завершена' },
+  { value: 'CANCELED', label: 'Отменена' },
+  { value: 'PAYMENT_COMPLETED', label: 'Платеж выполнен' },
+  { value: 'FAILED', label: 'Ошибка' },
+  { value: 'RETURN', label: 'Возврат' }
+];
+
 const initialFormState: Partial<Transaction> = {
   sum: 0,
   comment: '',
@@ -79,6 +91,7 @@ const initialFormState: Partial<Transaction> = {
   addressRecipient: '',
   phone: '',
   recipientPhoneRecipient: '',
+  status: 'NEW', // Дефолтный статус
   
   // Для совместимости со старым кодом
   amount: 0,
@@ -111,6 +124,7 @@ interface FormErrors {
   billRecip?: string;
   rBillRecip?: string;
   transactionType?: string;
+  status?: string;
   
   // Для совместимости со старым кодом
   amount?: string;
@@ -127,7 +141,12 @@ interface FormErrors {
 
 const TransactionForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const isEditing = !!id;
+  
+  // Более явный способ определения режима редактирования
+  const isEditing = id !== undefined && id !== null && id !== '';
+  
+  // Отладочная информация
+  console.log('TransactionForm: isEditing =', isEditing, 'id =', id);
   
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -333,7 +352,8 @@ const TransactionForm: React.FC = () => {
         // Синхронизируем старые и новые поля
         comment: formData.comment || formData.description || '',
         description: formData.description || formData.comment || '',
-        category: formData.category || (formData.categoryId ? formData.categoryId.toString() : '0'),
+        // Используем ID категории в поле category для совместимости с бэкендом
+        category: formData.categoryId ? formData.categoryId.toString() : (formData.category || '0'),
         categoryId: formData.categoryId || (formData.category ? parseInt(formData.category) : 0),
         transactionType: formData.transactionType || formData.type || 'DEBIT',
         typeOperation: formData.typeOperation || formData.transactionType || formData.type || 'DEBIT',
@@ -348,7 +368,9 @@ const TransactionForm: React.FC = () => {
         billRecip: formData.billRecip || '40000000000000000000',
         rBillRecip: formData.rBillRecip || '40000000000000000000',
         // Устанавливаем правильную дату
-        transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        transactionDate: date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        // При редактировании включаем статус (если есть)
+        status: isEditing ? (formData.status || 'NEW') : undefined
       };
       
       console.log('Отправляем данные транзакции:', dataToSubmit);
@@ -489,6 +511,84 @@ const TransactionForm: React.FC = () => {
             </Alert>
           )}
           
+          {/* ОЧЕНЬ ЗАМЕТНЫЙ БЛОК ВЫБОРА СТАТУСА */}
+          {isEditing && (
+            <Box 
+              sx={{ 
+                bgcolor: 'primary.light',
+                p: 3,
+                mb: 3,
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'primary.main',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.dark' }}>
+                Выбор статуса транзакции
+              </Typography>
+              <FormControl fullWidth variant="outlined">
+                <InputLabel id="status-select-label">Статус</InputLabel>
+                <Select
+                  labelId="status-select-label"
+                  id="status-select"
+                  name="status"
+                  value={formData.status || 'NEW'}
+                  onChange={handleChange as any}
+                  label="Статус"
+                >
+                  {TRANSACTION_STATUSES.map((status) => (
+                    <MenuItem key={status.value} value={status.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            mr: 1,
+                            bgcolor: 
+                              status.value === 'NEW' ? 'primary.main' :
+                              status.value === 'ACCEPTED' ? 'info.main' :
+                              status.value === 'PROCESSING' ? 'warning.main' :
+                              status.value === 'COMPLETED' ? 'success.main' :
+                              status.value === 'CANCELED' ? 'error.main' :
+                              status.value === 'PAYMENT_COMPLETED' ? 'success.dark' :
+                              status.value === 'FAILED' ? 'error.dark' :
+                              status.value === 'RETURN' ? 'secondary.main' : 'grey.500'
+                          }}
+                        />
+                        {status.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                Текущий выбранный статус: {
+                  TRANSACTION_STATUSES.find(s => s.value === (formData.status || 'NEW'))?.label || 'Новая'
+                }
+              </Typography>
+            </Box>
+          )}
+          
+          {/* Отладочная информация */}
+          <Box 
+            sx={{ 
+              bgcolor: 'warning.light', 
+              p: 2, 
+              mb: 3, 
+              borderRadius: 2 
+            }}
+          >
+            <Typography variant="h6" color="warning.dark">Отладочная информация</Typography>
+            <Typography variant="body2">
+              <strong>isEditing:</strong> {isEditing ? 'true' : 'false'}<br />
+              <strong>ID транзакции:</strong> {id || 'Нет ID'}<br />
+              <strong>Статус транзакции:</strong> {formData.status || 'Не установлен'}<br />
+              <strong>Доступные статусы:</strong> {TRANSACTION_STATUSES.map(s => s.value).join(', ')}
+            </Typography>
+          </Box>
+          
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <motion.div
               initial="initial"
@@ -535,7 +635,7 @@ const TransactionForm: React.FC = () => {
                   sx={{ maxWidth: 400, mx: 'auto' }}
                 >
                   <ToggleButton 
-                    value="CREDIT" 
+                    value="DEBIT" 
                     sx={{ 
                       py: 1.5, 
                       borderRadius: '12px 0 0 12px',
@@ -553,7 +653,7 @@ const TransactionForm: React.FC = () => {
                     Доход
                   </ToggleButton>
                   <ToggleButton 
-                    value="DEBIT" 
+                    value="CREDIT" 
                     sx={{ 
                       py: 1.5, 
                       borderRadius: '0 12px 12px 0',
@@ -579,6 +679,57 @@ const TransactionForm: React.FC = () => {
               animate="animate"
               variants={formControlVariants}
               custom={1}
+            >
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+                <FormControl fullWidth>
+                  <FormLabel id="transaction-type-label" sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}>
+                    Тип транзакции
+                  </FormLabel>
+                  <ToggleButtonGroup
+                    id="transaction-type"
+                    value={formData.type}
+                    exclusive
+                    onChange={(e, newValue) => {
+                      if (newValue !== null) {
+                        handleChange({
+                          target: {
+                            name: 'type',
+                            value: newValue,
+                          },
+                        } as React.ChangeEvent<HTMLInputElement>);
+                      }
+                    }}
+                    color="primary"
+                    fullWidth
+                    sx={{ 
+                      height: 56,
+                      '& .MuiToggleButton-root': {
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      },
+                    }}
+                  >
+                    <ToggleButton value="CREDIT" aria-label="доход">
+                      <TrendingUp sx={{ mr: 1, color: 'success.main' }} />
+                      Доход
+                    </ToggleButton>
+                    <ToggleButton value="DEBIT" aria-label="расход">
+                      <TrendingDown sx={{ mr: 1, color: 'error.main' }} />
+                      Расход
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </FormControl>
+              </Stack>
+            </motion.div>
+            
+            {/* Основные данные транзакции */}
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={formControlVariants}
+              custom={2}
             >
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <FormLabel
@@ -618,7 +769,7 @@ const TransactionForm: React.FC = () => {
               initial="initial"
               animate="animate"
               variants={formControlVariants}
-              custom={2}
+              custom={3}
             >
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <FormLabel
@@ -1198,6 +1349,7 @@ const TransactionForm: React.FC = () => {
                       return <Typography color="text.secondary">Выберите категорию</Typography>;
                     }
                     const category = categories.find((cat) => cat.id && cat.id.toString() === selected);
+                    console.log(`Выбрана категория: ID=${selected}, найдена:`, category);
                     return category ? category.name : 'Без категории';
                   }}
                   error={!!formErrors.category}

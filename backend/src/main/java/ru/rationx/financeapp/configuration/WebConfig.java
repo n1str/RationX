@@ -19,10 +19,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*") // Разрешаем все источники
+                .allowedOrigins("*") // Разрешаем все источники с явным указанием
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true)
+                .allowCredentials(false) // Меняем на false для совместимости с allowedOrigins("*")
                 .maxAge(3600);
     }
 
@@ -31,12 +31,12 @@ public class WebConfig implements WebMvcConfigurer {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // Разрешаем запросы со всех источников
-        config.setAllowedOriginPatterns(Collections.singletonList("*"));
+        // Разрешаем запросы со всех источников - для Docker-среды
+        config.addAllowedOrigin("*"); // Используем явное добавление, а не паттерн
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Origin", "Accept"));
         config.setExposedHeaders(Arrays.asList("Authorization"));
-        config.setAllowCredentials(true);
+        config.setAllowCredentials(false); // Меняем на false для совместимости с allowedOrigin("*")
         config.setMaxAge(3600L);
         
         source.registerCorsConfiguration("/**", config);

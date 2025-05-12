@@ -147,7 +147,8 @@ class TransactionService {
   async getTransactionById(id: number): Promise<Transaction> {
     try {
       const response = await api.get(`${TRANSACTION_ENDPOINTS.BASE}/${id}`);
-      return response.data;
+      console.log('Получена транзакция с бэкенда:', response.data);
+      return this._normalizeTransactionFromBackend(response.data);
     } catch (error) {
       console.error(`Failed to fetch transaction with id ${id}:`, error);
       throw error;

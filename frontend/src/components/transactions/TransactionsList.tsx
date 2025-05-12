@@ -18,7 +18,6 @@ import {
   MenuItem,
   Tooltip,
   CircularProgress,
-  useTheme,
   Stack,
   Divider,
 } from '@mui/material';
@@ -46,12 +45,13 @@ import {
 import { fetchAllCategories } from '../../store/slices/categoriesSlice';
 import { Transaction } from '../../services/transactionService';
 import TransactionsFilter from './TransactionsFilter';
+import TransactionDetailsModal from './TransactionDetailsModal';
 
 // Определение типа для фильтров транзакций
 interface TransactionFilters {
   type?: string;
   status?: string;
-  categoryId?: number;
+  categoryId?: string;
   fromDate?: Date | null;
   toDate?: Date | null;
   minAmount?: number | null;
@@ -92,11 +92,43 @@ const formatDate = (dateString: string | undefined): string => {
 
 // Функция для получения категории по идентификатору с исправленным сравнением
 const getCategoryById = (categoryId: string | number | undefined, categoriesList: any[]): any => {
-  if (!categoryId || !Array.isArray(categoriesList)) return null;
+  if (!categoryId || !Array.isArray(categoriesList) || categoriesList.length === 0) return null;
   
-  // Приводим ID категории к строке для сравнения
-  const categoryIdStr = String(categoryId);
-  return categoriesList.find(c => String(c.id) === categoryIdStr);
+  // Для отладки
+  console.log('Ищем категорию с ID/Name:', categoryId, 'Типа:', typeof categoryId);
+  
+  try {
+    // Приводим ID категории к строке для сравнения
+    const categoryIdStr = String(categoryId);
+    
+    // Сначала пробуем найти по точному совпадению ID
+    let foundCategory = categoriesList.find(c => String(c.id) === categoryIdStr);
+    
+    // Если не нашли по ID, пробуем поискать по полю name (если categoryId - это название)
+    if (!foundCategory) {
+      foundCategory = categoriesList.find(c => 
+        (typeof c.name === 'string') && 
+        (typeof categoryId === 'string') && 
+        c.name.toLowerCase() === categoryId.toLowerCase()
+      );
+    }
+    
+    // Если не нашли никак, пытаемся найти категорию с тем же ID но в другом типе данных
+    if (!foundCategory) {
+      const categoryIdNum = parseInt(categoryIdStr);
+      if (!isNaN(categoryIdNum)) {
+        foundCategory = categoriesList.find(c => Number(c.id) === categoryIdNum);
+      }
+    }
+    
+    // Для отладки
+    console.log('Результат поиска категории:', foundCategory);
+    
+    return foundCategory;
+  } catch (error) {
+    console.error('Ошибка при поиске категории:', error);
+    return null;
+  }
 };
 
 // Используем React.memo для предотвращения лишних рендеров
@@ -104,18 +136,20 @@ const TransactionRow = React.memo(({
   transaction, 
   category, 
   navigate, 
-  handleDeleteTransaction 
+  handleDeleteTransaction,
+  onViewDetails
 }: { 
   transaction: Transaction; 
   category: any;
   navigate: any;
   handleDeleteTransaction: (id: number) => void;
+  onViewDetails: (id: number) => void;
 }) => {
   return (
     <TableRow
       key={transaction.id}
       hover
-      onClick={() => navigate(`/transactions/${transaction.id}`)}
+      onClick={() => onViewDetails(transaction.id || 0)}
       sx={{ 
         cursor: 'pointer',
         '&:hover': { 
@@ -129,10 +163,10 @@ const TransactionRow = React.memo(({
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'CREDIT' ? 'success.main' : 'error.main',
           }}
         >
-          {transaction.type === 'DEBIT' ? <TrendingDown /> : <TrendingUp />}
+          {transaction.type === 'CREDIT' ? <TrendingUp /> : <TrendingDown />}
         </Box>
       </TableCell>
       <TableCell>
@@ -144,7 +178,9 @@ const TransactionRow = React.memo(({
         </Typography>
       </TableCell>
       <TableCell>
-        {category?.name || 'Без категории'}
+        <Typography variant="body2">
+          {category?.name || (transaction.categoryId ? `Категория №${transaction.categoryId}` : 'Без категории')}
+        </Typography>
       </TableCell>
       <TableCell>
         {transaction.transactionDate ? formatDate(transaction.transactionDate) : 'Нет даты'}
@@ -152,12 +188,12 @@ const TransactionRow = React.memo(({
       <TableCell>
         <Typography 
           sx={{ 
-            color: transaction.type === 'DEBIT' ? 'error.main' : 'success.main',
+            color: transaction.type === 'CREDIT' ? 'success.main' : 'error.main',
             fontWeight: 600,
           }}
         >
-          {transaction.type === 'DEBIT' ? '-' : '+'}
-          {transaction.amount ? formatCurrency(transaction.amount) : '₽0'}
+          {transaction.type === 'CREDIT' ? '+' : '-'}
+          {transaction.amount ? formatCurrency(Math.abs(transaction.amount)) : '₽0'}
         </Typography>
       </TableCell>
       <TableCell>
@@ -204,19 +240,21 @@ const TransactionRow = React.memo(({
 });
 
 const TransactionsList: React.FC = () => {
-  const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   
-  const { items: transactions = [], loading, filters } = useAppSelector(state => state.transactions);
-  const { items: categories = [] } = useAppSelector(state => state.categories);
+  const { items: transactions = [], loading, filters } = useAppSelector((state: any) => state.transactions);
+  const { items: categories = [] } = useAppSelector((state: any) => state.categories);
   
   // Local state for UI
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<number | null>(null);
+  
+  // Состояние для модального окна с деталями транзакции
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   
   useEffect(() => {
     dispatch(fetchAllTransactions());
@@ -227,6 +265,24 @@ const TransactionsList: React.FC = () => {
   useEffect(() => {
     console.log('Текущие фильтры:', filters);
   }, [filters]);
+  
+  // Эффект для отладки данных транзакций и категорий
+  useEffect(() => {
+    if (transactions.length > 0 && categories.length > 0) {
+      console.log('Данные транзакций:', transactions);
+      console.log('Данные категорий:', categories);
+      
+      // Проверка соответствия между ID категорий в транзакциях и категориями
+      transactions.forEach((transaction: Transaction) => {
+        const category = getCategoryById(transaction.categoryId, categories);
+        console.log(
+          `Транзакция ${transaction.id}: categoryId = ${transaction.categoryId}, ` + 
+          `category = ${transaction.category}, найденная категория:`, 
+          category
+        );
+      });
+    }
+  }, [transactions, categories]);
   
   // Handle pagination
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -271,8 +327,33 @@ const TransactionsList: React.FC = () => {
         
         // Проверяем фильтры
         const matchesTypeFilter = !filters.type || transaction.type === filters.type;
-        const matchesCategoryFilter = !filters.categoryId || 
-                                   String(transaction.categoryId) === String(filters.categoryId);
+        
+        // Проверка по категории - поиск по ID категории
+        let matchesCategoryFilter = true;
+        if (filters.categoryId) {
+          // Получаем выбранную категорию по ID из фильтра
+          const selectedCategory = categories.find((cat: any) => String(cat.id) === String(filters.categoryId));
+          
+          if (!selectedCategory) {
+            console.log('Выбранная в фильтре категория не найдена:', filters.categoryId);
+            matchesCategoryFilter = false;
+          } else {
+            // Находим категорию транзакции по ID или по полю category
+            const transactionCategoryId = transaction.categoryId || transaction.category;
+            
+            if (!transactionCategoryId) {
+              // У транзакции нет категории
+              matchesCategoryFilter = false;
+            } else {
+              // Поиск категории транзакции в списке категорий
+              const transactionCategory = getCategoryById(transactionCategoryId, categories);
+              
+              // Сравниваем ID категорий
+              matchesCategoryFilter = transactionCategory ? 
+                String(transactionCategory.id) === String(selectedCategory.id) : false;
+            }
+          }
+        }
         
         // Проверка диапазона дат
         let matchesDateRangeFilter = true;
@@ -327,6 +408,17 @@ const TransactionsList: React.FC = () => {
   // Apply pagination
   const paginatedTransactions = filteredTransactions
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  
+  // Обработчик для просмотра деталей транзакции
+  const handleViewTransactionDetails = (name: string) => {
+    setSelectedTransactionId(name);
+    setDetailsModalOpen(true);
+  };
+  
+  // Закрытие модального окна деталей
+  const handleCloseDetailsModal = () => {
+    setDetailsModalOpen(false);
+  };
   
   return (
     <Box sx={{ 
@@ -470,7 +562,20 @@ const TransactionsList: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {paginatedTransactions.map((transaction) => {
-                    const category = getCategoryById(transaction?.categoryId, categories);
+                    // Попытка получить категорию по ID
+                    let category = getCategoryById(transaction?.categoryId, categories);
+                    
+                    // Если категорию не нашли по categoryId, пробуем поискать по полю category
+                    if (!category && transaction.category) {
+                      category = getCategoryById(transaction.category, categories);
+                    }
+                    
+                    // Для отладки
+                    console.log(
+                      `Транзакция ${transaction.id}: categoryId=${transaction.categoryId}, ` +
+                      `category=${transaction.category}, найденная категория:`, 
+                      category
+                    );
                     
                     return (
                       <TransactionRow
@@ -479,6 +584,7 @@ const TransactionsList: React.FC = () => {
                         category={category}
                         navigate={navigate}
                         handleDeleteTransaction={handleDeleteTransaction}
+                        onViewDetails={handleViewTransactionDetails}
                       />
                     );
                   })}
@@ -529,6 +635,15 @@ const TransactionsList: React.FC = () => {
           </Box>
         )}
       </Paper>
+      
+      {/* Модальное окно с деталями транзакции */}
+      {selectedTransactionId !== null && (
+        <TransactionDetailsModal
+          open={detailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          transactionId={selectedTransactionId}
+        />
+      )}
     </Box>
   );
 };

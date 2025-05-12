@@ -1,11 +1,23 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// Определяем BASE_URL в зависимости от окружения
-let BASE_URL = 'http://localhost:8080';
+// Устанавливаем обработчик для показа ошибок в консоли
+window.addEventListener('error', (event) => {
+  console.error('Глобальная ошибка:', event.error);
+});
 
-// Логирование для отладки
-console.log('API BASE URL:', BASE_URL, 'Hostname:', window.location.hostname);
-console.log('IP хост:', window.location.host);
+// Определяем BASE_URL в зависимости от окружения
+const hostname = window.location.hostname;
+const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+// Используем текущий хост для определения API URL
+// Если мы обращаемся к приложению извне Docker, используем тот же хост с портом 8080 
+let BASE_URL = isLocalhost 
+  ? 'http://localhost:8080' 
+  : `http://${hostname}:8080`;
+
+// Для отладки
+console.log('API BASE URL:', BASE_URL, 'Hostname:', hostname);
+console.log('Полный URL:', window.location.href);
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -13,7 +25,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: true, // Разрешаем отправку cookies в кросс-доменных запросах
+  withCredentials: false, // Отключаем credentials для улучшения CORS
   timeout: 15000 // Увеличен таймаут до 15 секунд для более надежной работы
 });
 

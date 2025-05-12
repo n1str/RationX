@@ -16,5 +16,8 @@ RUN npm ci --legacy-peer-deps
 # Открываем порт, на котором работает vite dev server
 EXPOSE 5173
 
+# Определяем переменные окружения для Vite
+ENV VITE_BACKEND_URL=http://backend:8080
+
 # Запускаем Vite в режиме разработки с host=0.0.0.0 для доступа извне
 CMD ["npm", "run", "dev"]

@@ -4,17 +4,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import ru.rationx.financeapp.models.dto.statistic.StatisticDTO;
+import ru.rationx.financeapp.models.transaction.Transaction;
 import ru.rationx.financeapp.models.transaction.TransactionType;
 import ru.rationx.financeapp.services.StatisticService;
+import ru.rationx.financeapp.services.TransactionService;
+import ru.rationx.financeapp.utils.PdfGenerator;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,6 +36,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StatisticsController {
     private final StatisticService statistics;
+    private final TransactionService transactionService;
+    private final PdfGenerator pdfGenerator;
 
     @GetMapping
     public ResponseEntity<?> getGeneralStatistics(Principal principal) {
@@ -154,6 +164,71 @@ public class StatisticsController {
         } catch (Exception e) {
             log.error("Error getting last year statistics: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", "Ошибка при получении статистики за последний год: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Экспортирует статистику в PDF отчет
+     *
+     * @param start начальная дата для отчета
+     * @param end конечная дата для отчета
+     * @return PDF файл со статистикой
+     */
+    @GetMapping("/export-pdf")
+    public ResponseEntity<?> exportToPdf(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            Principal principal) {
+        try {
+            log.info("GET /api/statistics/export-pdf?start={}&end={} - User: {}", 
+                    start.format(DateTimeFormatter.ISO_DATE_TIME), 
+                    end.format(DateTimeFormatter.ISO_DATE_TIME), 
+                    principal.getName());
+            
+            // Получаем данные для отчета
+            Map<String, Object> generalStats = statistics.generalStatistic(principal);
+            Map<String, StatisticDTO> categoryStats = statistics.getByCategory(principal);
+            
+            // Получаем транзакции за указанный период
+            Date startDate = Date.from(start.atZone(ZoneId.systemDefault()).toInstant());
+            Date endDate = Date.from(end.atZone(ZoneId.systemDefault()).toInstant());
+            List<Transaction> transactions = transactionService.getTransactionsByDateRange(
+                    principal.getName(), startDate, endDate);
+            
+            // Получаем данные по периодам, тут нужно будет доработать метод
+            // для получения реальных данных за период
+            // Пока используем фиктивные данные для примера
+            List<Map<String, Object>> periodStats = statistics.getPeriodStats(principal, startDate, endDate);
+            
+            // Генерируем PDF
+            byte[] pdfBytes = pdfGenerator.generateFinancialReport(
+                    generalStats,
+                    categoryStats,
+                    periodStats,
+                    transactions,
+                    startDate,
+                    endDate
+            );
+            
+            // Формируем имя файла
+            String fileName = "finance-report-" + 
+                    start.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + "-" +
+                    end.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + ".pdf";
+            
+            // Настраиваем заголовки для скачивания файла
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", fileName);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+            
+            return ResponseEntity
+                    .ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+            
+        } catch (Exception e) {
+            log.error("Error exporting to PDF: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("error", "Ошибка при генерации PDF отчета: " + e.getMessage()));
         }
     }
 }

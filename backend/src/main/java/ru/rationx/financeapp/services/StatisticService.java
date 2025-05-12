@@ -10,8 +10,10 @@ import ru.rationx.financeapp.models.transaction.TransactionType;
 import ru.rationx.financeapp.models.user.User;
 
 import java.security.Principal;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -75,5 +77,64 @@ public class StatisticService {
                                 }
                         )
         );
+    }
+
+    /**
+     * Получить статистику за период по дням
+     *
+     * @param principal пользователь
+     * @param startDate начальная дата
+     * @param endDate конечная дата
+     * @return список статистики по дням
+     */
+    public List<Map<String, Object>> getPeriodStats(Principal principal, Date startDate, Date endDate) {
+        User user = userService.getUser(principal.getName());
+        
+        // Получаем транзакции за период
+        List<Transaction> transactions = transactionService.getTransactionsByDateRange(
+                principal.getName(), startDate, endDate);
+        
+        // Группируем транзакции по дате
+        Map<LocalDate, List<Transaction>> groupedByDate = transactions.stream()
+                .filter(tx -> tx.getDateTime() != null)
+                .collect(Collectors.groupingBy(tx -> tx.getDateTime()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()));
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        // Преобразуем группированные данные в список статистики по дням
+        for (Map.Entry<LocalDate, List<Transaction>> entry : groupedByDate.entrySet()) {
+            LocalDate date = entry.getKey();
+            List<Transaction> dailyTransactions = entry.getValue();
+            
+            // Подсчитываем доходы и расходы
+            double income = dailyTransactions.stream()
+                    .filter(tx -> tx.getRegTransaction().getTransactionType() == TransactionType.DEBIT)
+                    .mapToDouble(tx -> tx.getRegTransaction().getSum())
+                    .sum();
+            
+            double expenses = dailyTransactions.stream()
+                    .filter(tx -> tx.getRegTransaction().getTransactionType() == TransactionType.CREDIT)
+                    .mapToDouble(tx -> tx.getRegTransaction().getSum())
+                    .sum();
+            
+            double balance = income - expenses;
+            int count = dailyTransactions.size();
+            
+            Map<String, Object> dailyStats = new HashMap<>();
+            dailyStats.put("period", Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            dailyStats.put("income", income);
+            dailyStats.put("expenses", expenses);
+            dailyStats.put("balance", balance);
+            dailyStats.put("transactionCount", count);
+            
+            result.add(dailyStats);
+        }
+        
+        // Сортируем по дате
+        result.sort((a, b) -> ((Date) a.get("period")).compareTo((Date) b.get("period")));
+        
+        return result;
     }
 }

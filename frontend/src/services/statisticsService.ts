@@ -150,9 +150,9 @@ class StatisticsService {
   private _normalizeGeneralStatistics(data: any): GeneralStatistics {
     if (!data) return FALLBACK_GENERAL_STATISTICS;
     
-    // Инвертируем доходы и расходы, т.к. на бэкенде они считаются наоборот
-    const totalIncome = data.totalExpense || data.expenses || 0;
-    const totalExpenses = data.totalIncome || data.income || 0;
+    // Инвертируем доходы и расходы, т.к. на бэкенде они считаются наоборот totalIncome totalExpense
+    const totalIncome = data.totalIncome || data.expenses || 0;
+    const totalExpenses = data.totalExpense || data.income || 0;
     const balance = totalIncome - totalExpenses;
     
     console.log('Исходные данные статистики:', data);

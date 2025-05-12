@@ -28,8 +28,15 @@ public class LiteTransactionDTO {
     @NotNull(message = "Значение `inn` не может быть null или пустым ")
     @Pattern(regexp = "^\\d{10}|\\d{12}$", message = "ИНН должен содержать 10 или 12 цифр")
     private String inn;
+    // Адрес отправителя
+    private String address;
+    // Телефон отправителя
+    private String phone;
 
-
+    // Данные банка отправителя
+    private String nameBankSender;
+    private String billSender;
+    private String rBillSender;
 
     @NotNull(message = "Значение `personTypeRecipient` не может быть null или пустым ")
     private Subject.PersonType personTypeRecipient;
@@ -38,6 +45,15 @@ public class LiteTransactionDTO {
     @NotNull(message = "Значение `inn` не может быть null или пустым ")
     @Pattern(regexp = "^\\d{10}|\\d{12}$", message = "ИНН должен содержать 10 или 12 цифр")
     private String innRecipient;
+    // Адрес получателя
+    private String addressRecipient;
+    // Телефон получателя
+    private String phoneRecipient;
+
+    // Данные банка получателя
+    private String nameBankRecipient;
+    private String billRecipient;
+    private String rBillRecipient;
 
     private String comment;
 
@@ -56,5 +72,4 @@ public class LiteTransactionDTO {
 
     @NotNull(message = "Значение `typeOperation` не может быть null или пустым ")
     private TransactionType typeOperation;
-
 }

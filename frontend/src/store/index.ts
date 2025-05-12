@@ -28,6 +28,11 @@ if (!checkLocalStorage()) {
   }
 }
 
+const logStoreState = () => {
+  const state: RootState = store.getState();
+  console.log('Текущее состояние хранилища:', state);
+};
+
 const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -40,6 +45,8 @@ const store = configureStore({
       serializableCheck: false,
     }),
 });
+
+store.subscribe(logStoreState);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

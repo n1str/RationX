@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Box, 
   Paper, 
@@ -33,6 +33,7 @@ import { fetchAllCategories } from '../../store/slices/categoriesSlice';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { PieChart, Pie, Legend, Tooltip } from 'recharts';
 import { useCustomTheme } from '../../utils/theme';
+import TransactionDetailsModal from '../transactions/TransactionDetailsModal';
 
 // Format number as currency
 const formatCurrency = (amount: number): string => {
@@ -114,6 +115,37 @@ const CustomLegend = ({ payload }: any) => {
   );
 };
 
+// Функция для получения категории по идентификатору с исправленным сравнением
+const getCategoryById = (categoryId: string | number | undefined, categoriesList: any[]): any => {
+  if (!categoryId || !Array.isArray(categoriesList) || categoriesList.length === 0) return null;
+  
+  try {
+    // Приводим ID категории к строке для сравнения
+    const categoryIdStr = String(categoryId);
+    
+    // Сначала пробуем найти по точному совпадению ID
+    let foundCategory = categoriesList.find(c => String(c.id) === categoryIdStr);
+    
+    // Если не нашли по ID, пробуем поискать по полю name (если categoryId - это название)
+    if (!foundCategory && typeof categoryId === 'string') {
+      foundCategory = categoriesList.find(c => c.name === categoryId);
+    }
+    
+    // Если не нашли никак, пытаемся найти категорию с тем же ID но в другом типе данных
+    if (!foundCategory) {
+      const categoryIdNum = parseInt(categoryIdStr);
+      if (!isNaN(categoryIdNum)) {
+        foundCategory = categoriesList.find(c => c.id === categoryIdNum);
+      }
+    }
+    
+    return foundCategory;
+  } catch (error) {
+    console.error('Ошибка при поиске категории:', error);
+    return null;
+  }
+};
+
 const Dashboard: React.FC = () => {
   const { mode } = useCustomTheme();
   const navigate = useNavigate();
@@ -163,7 +195,7 @@ const Dashboard: React.FC = () => {
   // Create data for bar chart
   const chartData = transactions && Array.isArray(transactions)
     ? transactions
-        .filter(transaction => transaction.type === 'DEBIT')
+        .filter(transaction => transaction.type === 'CREDIT')
         .slice(0, 7)
         .map(transaction => {
           const category = categories && Array.isArray(categories) 
@@ -207,34 +239,28 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  // Группировка транзакций по категориям для диаграммы расходов
-  const expenseCategories = useMemo(() => {
-    if (!transactions || !Array.isArray(transactions) || !categories || !Array.isArray(categories)) {
-      return [];
-    }
-
-    // Получаем только расходы (CREDIT)
-    const expenses = transactions.filter(transaction => transaction.type === 'CREDIT');
+  // Подготовка данных о категориях расходов и доходов
+  const creditCategories = useMemo(() => {
+    if (!transactions || !categories) return [];
     
-    // Создаем объект для группировки сумм по категориям
-    const categoryTotals: Record<string, { 
-      id: number | string,
-      name: string, 
-      amount: number, 
-      color: string
-    }> = {};
+    const categoryTotals: Record<string, { id: string, name: string, amount: number, color: string }> = {};
 
-    // Группируем транзакции по категориям и суммируем значения
-    expenses.forEach(transaction => {
-      // При сохранении транзакции categoryId может быть числом или строкой,
-      // поэтому приводим оба значения к строке для корректного сравнения
-      const transactionCategoryId = transaction.categoryId ? String(transaction.categoryId) : 
-                                  transaction.category ? String(transaction.category) : null;
+    // Получаем только доходы (CREDIT)
+    transactions
+    .filter(t => t.type === 'CREDIT')
+    .forEach(transaction => {
+      // Применяем нашу надежную функцию для поиска категории
+      let category = getCategoryById(transaction.categoryId, categories);
       
-      console.log('Transaction:', transaction.id, 'Category ID:', transactionCategoryId);
+      // Если категорию не нашли по categoryId, пробуем поискать по полю category
+      if (!category && transaction.category) {
+        category = getCategoryById(transaction.category, categories);
+      }
       
-      if (!transactionCategoryId) {
-        // Если категория не указана, добавляем в "Без категории"
+      // Убираем отладочный вывод, который мог вызывать ошибки
+      
+      if (!category) {
+        // Если категория не найдена, добавляем в "Без категории"
         const unknownCatId = 'unknown';
         if (!categoryTotals[unknownCatId]) {
           categoryTotals[unknownCatId] = {
@@ -244,27 +270,82 @@ const Dashboard: React.FC = () => {
             color: COLORS[Object.keys(categoryTotals).length % COLORS.length]
           };
         }
-        categoryTotals[unknownCatId].amount += (transaction.amount || 0);
-        return;
+        categoryTotals[unknownCatId].amount += Math.abs(transaction.amount || 0);
+      } else {
+        // Используем найденную категорию
+        const categoryId = String(category.id);
+        const categoryName = category.name || 'Без имени';
+        
+        // Если такой категории еще нет в объекте, создаем её
+        if (!categoryTotals[categoryId]) {
+          categoryTotals[categoryId] = {
+            id: categoryId,
+            name: categoryName,
+            amount: 0,
+            color: COLORS[Object.keys(categoryTotals).length % COLORS.length]
+          };
+        }
+        
+        // Добавляем сумму транзакции к общей сумме категории
+        categoryTotals[categoryId].amount += Math.abs(transaction.amount || 0);
+      }
+    });
+
+    // Преобразуем объект в массив и сортируем по убыванию суммы
+    return Object.values(categoryTotals)
+      .sort((a, b) => b.amount - a.amount);
+  }, [transactions, categories]);
+
+  // НОВЫЙ КОД: Подготовка данных о категориях расходов
+  const expenseCategories = useMemo(() => {
+    if (!transactions || !categories) return [];
+    
+    const categoryTotals: Record<string, { id: string, name: string, amount: number, color: string }> = {};
+
+    // Получаем только расходы (DEBIT)
+    transactions
+    .filter(t => t.type === 'DEBIT')
+    .forEach(transaction => {
+      // Применяем нашу надежную функцию для поиска категории
+      let category = getCategoryById(transaction.categoryId, categories);
+      
+      // Если категорию не нашли по categoryId, пробуем поискать по полю category
+      if (!category && transaction.category) {
+        category = getCategoryById(transaction.category, categories);
       }
       
-      // Находим категорию для транзакции (сравниваем строки с обеих сторон)
-      const category = categories.find(cat => String(cat.id) === transactionCategoryId);
-      const categoryName = category?.name || 'Другое';
-      const categoryId = transactionCategoryId;
+      // Убираем отладочный вывод, который мог вызывать ошибки
       
-      // Если такой категории еще нет в объекте, создаем её
-      if (!categoryTotals[categoryId]) {
-        categoryTotals[categoryId] = {
-          id: categoryId,
-          name: categoryName,
-          amount: 0,
-          color: COLORS[Object.keys(categoryTotals).length % COLORS.length]
-        };
+      if (!category) {
+        // Если категория не найдена, добавляем в "Без категории"
+        const unknownCatId = 'unknown';
+        if (!categoryTotals[unknownCatId]) {
+          categoryTotals[unknownCatId] = {
+            id: unknownCatId,
+            name: 'Без категории',
+            amount: 0,
+            color: COLORS[Object.keys(categoryTotals).length % COLORS.length]
+          };
+        }
+        categoryTotals[unknownCatId].amount += Math.abs(transaction.amount || 0);
+      } else {
+        // Используем найденную категорию
+        const categoryId = String(category.id);
+        const categoryName = category.name || 'Без имени';
+        
+        // Если такой категории еще нет в объекте, создаем её
+        if (!categoryTotals[categoryId]) {
+          categoryTotals[categoryId] = {
+            id: categoryId,
+            name: categoryName,
+            amount: 0,
+            color: COLORS[Object.keys(categoryTotals).length % COLORS.length]
+          };
+        }
+        
+        // Добавляем сумму транзакции к общей сумме категории
+        categoryTotals[categoryId].amount += Math.abs(transaction.amount || 0);
       }
-      
-      // Добавляем сумму транзакции к общей сумме категории
-      categoryTotals[categoryId].amount += (transaction.amount || 0);
     });
 
     // Преобразуем объект в массив и сортируем по убыванию суммы
@@ -290,11 +371,17 @@ const Dashboard: React.FC = () => {
       y: 0, 
       opacity: 1,
       transition: { duration: 0.3, ease: "easeOut" }
-    },
-    hover: { 
-      y: -5,
-      boxShadow: "0px 10px 30px rgba(0,0,0,0.1)",
-      transition: { duration: 0.2, ease: "easeOut" }
+    }
+  };
+
+  // Новая анимация для ховера карточек
+  const paperHoverStyle = {
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      transform: 'translateY(-5px)',
+      boxShadow: mode === 'dark' 
+        ? '0px 10px 30px rgba(0, 0, 0, 0.3)' 
+        : '0px 10px 30px rgba(0, 0, 0, 0.1)',
     }
   };
 
@@ -334,6 +421,21 @@ const Dashboard: React.FC = () => {
         {formatCurrency(value)} ({(percent * 100).toFixed(0)}%)
       </text>
     );
+  };
+
+  // Новое состояние для модального окна просмотра деталей транзакции
+  const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  
+  // Обработчик клика по транзакции
+  const handleTransactionClick = (transactionId: number) => {
+    setSelectedTransactionId(transactionId);
+    setDetailsModalOpen(true);
+  };
+  
+  // Закрытие модального окна деталей
+  const handleCloseDetailsModal = () => {
+    setDetailsModalOpen(false);
   };
 
   return (
@@ -412,6 +514,159 @@ const Dashboard: React.FC = () => {
             
             {/* Charts Section */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
+              {/* Income Overview */}
+              <motion.div 
+                variants={chartVariants}
+                whileHover="hover"
+                style={{ width: '100%', height: '100%' }}
+              >
+                <Paper 
+                  elevation={2} 
+                  sx={{ 
+                    p: 3, 
+                    borderRadius: 3,
+                    height: '100%',
+                    border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Обзор доходов
+                    </Typography>
+                    <Button 
+                      variant="text" 
+                      endIcon={<ArrowForward />}
+                      onClick={() => navigate('/statistics')}
+                      sx={{
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateX(3px)'
+                        }
+                      }}
+                    >
+                      Показать все
+                    </Button>
+                  </Box>
+                  
+                  <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {creditCategories && creditCategories.length > 0 ? (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <defs>
+                              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.2" />
+                              </filter>
+                              {COLORS.map((color, index) => (
+                                <linearGradient key={index} id={`colorGradient${index + 1}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={color} stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor={color} stopOpacity={0.7}/>
+                                </linearGradient>
+                              ))}
+                            </defs>
+                            <Pie
+                              data={creditCategories}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={renderCustomizedLabel}
+                              outerRadius={100}
+                              innerRadius={70}
+                              fill="#8884d8"
+                              filter="url(#shadow)"
+                              dataKey="amount"
+                              nameKey="name"
+                              stroke="#0088FE"
+                            >
+                              {creditCategories.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.color || COLORS[index % COLORS.length]} 
+                                  stroke={entry.color || COLORS[index % COLORS.length]} 
+                                  filter="url(#shadow)" 
+                                  id={entry.name}
+                                  color={entry.color || COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                              <text
+                                x="50%"
+                                y="50%"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                style={{ fontSize: '16px', fontWeight: '600', fill: '#333' }}
+                              >
+                                Доходы
+                              </text>
+                              <text 
+                                x="50%" 
+                                y="50%" 
+                                dy="20" 
+                                textAnchor="middle" 
+                                dominantBaseline="middle"
+                                style={{ fontSize: '14px', fontWeight: '500', fill: '#666' }}
+                              >
+                                {formatCurrency(creditCategories.reduce((sum, item) => sum + item.amount, 0))}
+                              </text>
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: '100%' }}
+                      >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
+                          <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+                          <Typography variant="body1" color="text.secondary">
+                            Нет данных о доходах
+                          </Typography>
+                        </Box>
+                      </motion.div>
+                    )}
+                  </Box>
+                  <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap' }}>
+                    {creditCategories.slice(0, 3).map((category, index) => (
+                      <Box key={index} sx={{ width: '100%', mb: 1 }}>
+                        <motion.div
+                          initial={{ opacity: 0, x: -5 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1, duration: 0.3 }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '3px',
+                                  bgcolor: category.color || COLORS[index % COLORS.length],
+                                  mr: 1.5,
+                                }}
+                              />
+                              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                                {category.name}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {formatCurrency(category.amount)}
+                            </Typography>
+                          </Box>
+                        </motion.div>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
+              </motion.div>
+
               {/* Expense Overview */}
               <motion.div 
                 variants={chartVariants}
@@ -449,93 +704,55 @@ const Dashboard: React.FC = () => {
                   
                   <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {expenseCategories && expenseCategories.length > 0 ? (
-                      <>
-                        <motion.div 
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.6, ease: "easeOut" }}
-                          style={{ width: '100%', height: '100%' }}
-                        >
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart width={500} height={300}>
-                              {/* SVG-фильтры для теней */}
-                              <defs>
-                                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                                  <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.2" />
-                                </filter>
-                                
-                                {/* Градиенты для секторов */}
-                                <linearGradient id="colorGradient1" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#0088FE" stopOpacity={0.9}/>
-                                  <stop offset="95%" stopColor="#0088FE" stopOpacity={0.7}/>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <defs>
+                              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.2" />
+                              </filter>
+                              {COLORS.map((color, index) => (
+                                <linearGradient key={index} id={`colorGradient${index + 1}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={color} stopOpacity={0.9}/>
+                                  <stop offset="95%" stopColor={color} stopOpacity={0.7}/>
                                 </linearGradient>
-                                <linearGradient id="colorGradient2" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#00C49F" stopOpacity={0.9}/>
-                                  <stop offset="95%" stopColor="#00C49F" stopOpacity={0.7}/>
-                                </linearGradient>
-                                <linearGradient id="colorGradient3" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#FFBB28" stopOpacity={0.9}/>
-                                  <stop offset="95%" stopColor="#FFBB28" stopOpacity={0.7}/>
-                                </linearGradient>
-                                <linearGradient id="colorGradient4" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#FF8042" stopOpacity={0.9}/>
-                                  <stop offset="95%" stopColor="#FF8042" stopOpacity={0.7}/>
-                                </linearGradient>
-                              </defs>
-                              
-                              <Tooltip 
-                                contentStyle={{
-                                  backgroundColor: 'white',
-                                  border: 'none',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                  padding: '8px 12px',
-                                  fontSize: '14px',
-                                  transition: 'all 0.3s ease'
-                                }}
-                                formatter={(value: any) => [formatCurrency(value), 'Сумма']}
-                                animationDuration={300}
-                              />
-                              
-                              <Legend content={() => null} /> {/* Скрываем стандартную легенду */}
-                              
-                              <Pie
-                                data={expenseCategories}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={renderCustomizedLabel}
-                                outerRadius={100}
-                                innerRadius={70}
-                                fill="#8884d8"
-                                dataKey="amount"
-                                paddingAngle={4}
-                                animationBegin={0}
-                                animationDuration={1500}
-                                animationEasing="ease-out"
-                                filter="url(#shadow)"
-                              >
-                                {expenseCategories.map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={entry.color} 
-                                    stroke={COLORS[index % COLORS.length]} 
-                                    strokeWidth={1}
-                                  />
-                                ))}
-                              </Pie>
-                              
-                              {/* Добавляем центральный текст в диаграмму */}
-                              <text 
-                                x="50%" 
-                                y="50%" 
-                                textAnchor="middle" 
+                              ))}
+                            </defs>
+                            <Pie
+                              data={expenseCategories}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={renderCustomizedLabel}
+                              outerRadius={100}
+                              innerRadius={70}
+                              fill="#8884d8"
+                              filter="url(#shadow)"
+                              dataKey="amount"
+                              nameKey="name"
+                              stroke="#FF8042"
+                            >
+                              {expenseCategories.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.color || COLORS[index % COLORS.length]} 
+                                  stroke={entry.color || COLORS[index % COLORS.length]} 
+                                  filter="url(#shadow)" 
+                                  id={entry.name}
+                                  color={entry.color || COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                              <text
+                                x="50%"
+                                y="50%"
+                                textAnchor="middle"
                                 dominantBaseline="middle"
-                                style={{ 
-                                  fontSize: '16px',
-                                  fontWeight: 600,
-                                  fill: '#333'
-                                }}
+                                style={{ fontSize: '16px', fontWeight: '600', fill: '#333' }}
                               >
                                 Расходы
                               </text>
@@ -545,76 +762,20 @@ const Dashboard: React.FC = () => {
                                 dy="20" 
                                 textAnchor="middle" 
                                 dominantBaseline="middle"
-                                style={{ 
-                                  fontSize: '14px',
-                                  fontWeight: 500,
-                                  fill: '#666'
-                                }}
+                                style={{ fontSize: '14px', fontWeight: '500', fill: '#666' }}
                               >
-                                {formatCurrency(
-                                  expenseCategories.reduce((sum, item) => sum + (item.amount || 0), 0)
-                                )}
+                                {formatCurrency(expenseCategories.reduce((sum, item) => sum + item.amount, 0))}
                               </text>
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </motion.div>
-                        
-                        {/* Блоки категорий расходов под диаграммой */}
-                        <Box sx={{ mt: 3 }}>
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              flexWrap: 'wrap', 
-                              gap: 1.5,
-                              justifyContent: 'center' 
-                            }}
-                          >
-                            {expenseCategories.map((category, index) => (
-                              <motion.div
-                                key={`category-${index}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ 
-                                  delay: 0.3 + (index * 0.1),
-                                  duration: 0.4
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    bgcolor: category.color,
-                                    color: '#fff',
-                                    borderRadius: '16px',
-                                    px: 2.5,
-                                    py: 1,
-                                    minWidth: '120px',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                    transition: 'all 0.2s',
-                                    '&:hover': {
-                                      transform: 'translateY(-5px)',
-                                      boxShadow: '0 8px 16px rgba(0,0,0,0.12)'
-                                    }
-                                  }}
-                                >
-                                  <Typography variant="subtitle1" fontWeight={600}>
-                                    {category.name}
-                                  </Typography>
-                                  <Typography variant="body1" fontWeight={500}>
-                                    {formatCurrency(category.amount)}
-                                  </Typography>
-                                </Box>
-                              </motion.div>
-                            ))}
-                          </Box>
-                        </Box>
-                      </>
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </motion.div>
                     ) : (
                       <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: '100%' }}
                       >
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
                           <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
@@ -625,170 +786,217 @@ const Dashboard: React.FC = () => {
                       </motion.div>
                     )}
                   </Box>
-                </Paper>
-              </motion.div>
-              
-              {/* Recent Transactions */}
-              <motion.div 
-                variants={chartVariants}
-                whileHover="hover"
-                style={{ width: '100%', height: '100%' }}
-              >
-                <Paper 
-                  elevation={2} 
-                  sx={{ 
-                    p: 3, 
-                    borderRadius: 3,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Последние транзакции
-                    </Typography>
-                    <Button 
-                      variant="text" 
-                      endIcon={<ArrowForward />}
-                      onClick={() => navigate('/transactions')}
-                      sx={{
-                        transition: 'all 0.15s ease',
-                        '&:hover': {
-                          transform: 'translateX(3px)'
-                        }
-                      }}
-                    >
-                      Показать все
-                    </Button>
-                  </Box>
-                  
-                  <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-                    {recentTransactions && recentTransactions.length > 0 ? (
-                      <List sx={{ p: 0 }}>
-                        {recentTransactions.map((transaction, index) => {
-                          // Преобразуем ID категории в строку для корректного сравнения
-                          const transactionCategoryId = transaction.categoryId ? String(transaction.categoryId) : 
-                                                    transaction.category ? String(transaction.category) : null;
-                                                    
-                          // Находим категорию в списке (сравниваем строковые ID)
-                          const category = categories && Array.isArray(categories) 
-                            ? categories.find(c => String(c.id) === transactionCategoryId)
-                            : null;
-                            
-                          return (
-                            <motion.div
-                              key={transaction.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.1 }}
-                            >
-                              <ListItem 
-                                sx={{ 
-                                  px: 2, 
-                                  py: 1.5,
-                                  borderRadius: 2,
-                                  mb: 1,
-                                  transition: 'all 0.2s ease',
-                                  cursor: 'pointer',
-                                  '&:hover': {
-                                    bgcolor: 'action.hover',
-                                    transform: 'translateX(5px)'
-                                  }
+                  <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap' }}>
+                    {expenseCategories.slice(0, 3).map((category, index) => (
+                      <Box key={index} sx={{ width: '100%', mb: 1 }}>
+                        <motion.div
+                          initial={{ opacity: 0, x: -5 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1, duration: 0.3 }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box
+                                sx={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: '3px',
+                                  bgcolor: category.color || COLORS[index % COLORS.length],
+                                  mr: 1.5,
                                 }}
-                                onClick={() => navigate(`/transactions/${transaction.id}`)}
-                                component="div"
-                              >
-                                <ListItemAvatar>
-                                  <Avatar 
-                                    sx={{ 
-                                      bgcolor: transaction.type === 'CREDIT' ? 'error.light' : 'success.light',
-                                      color: 'white'
-                                    }}
-                                  >
-                                    {transaction.type === 'CREDIT' ? 
-                                      <TrendingDown /> : 
-                                      <TrendingUp />
-                                    }
-                                  </Avatar>
-                                </ListItemAvatar>
-                                <ListItemText
-                                  primary={
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <Typography variant="body1" fontWeight={500}>
-                                        {transaction.description}
-                                      </Typography>
-                                      <Typography 
-                                        variant="body1" 
-                                        fontWeight={600}
-                                        color={transaction.type === 'CREDIT' ? 'error.main' : 'success.main'}
-                                      >
-                                        {transaction.type === 'CREDIT' ? '-' : '+'}
-                                        {formatCurrency(transaction.amount)}
-                                      </Typography>
-                                    </Box>
-                                  }
-                                  secondary={
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {category?.name || 'Без категории'}
-                                      </Typography>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {formatDate(transaction.transactionDate)}
-                                      </Typography>
-                                    </Box>
-                                  }
-                                />
-                              </ListItem>
-                            </motion.div>
-                          );
-                        })}
-                      </List>
-                    ) : (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
-                          <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-                          <Typography variant="body1" color="text.secondary">
-                            Нет последних транзакций
-                          </Typography>
-                        </Box>
-                      </motion.div>
-                    )}
+                              />
+                              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                                {category.name}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {formatCurrency(category.amount)}
+                            </Typography>
+                          </Box>
+                        </motion.div>
+                      </Box>
+                    ))}
                   </Box>
-                  
-                  {transactions.length > 0 && (
-                    <Box>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Add />}
-                        onClick={() => navigate('/transactions/new')}
-                        fullWidth
-                        sx={{
-                          mt: 1.5,
-                          py: 1,
-                          transition: 'all 0.15s ease',
-                          borderRadius: 2,
-                          '&:hover': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
-                          }
-                        }}
-                      >
-                        Добавить транзакцию
-                      </Button>
-                    </Box>
-                  )}
                 </Paper>
               </motion.div>
             </Box>
+
+            {/* Recent Transactions Section */}
+            <motion.div 
+              variants={chartVariants}
+              whileHover="hover"
+              style={{ width: '100%' }}
+            >
+              <Paper 
+                elevation={2} 
+                sx={{ 
+                  p: 3, 
+                  borderRadius: 3,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  border: `1px solid ${mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                  transition: 'all 0.2s ease',
+                  mb: 3
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Последние транзакции
+                  </Typography>
+                  <Button 
+                    variant="text" 
+                    endIcon={<ArrowForward />}
+                    onClick={() => navigate('/transactions')}
+                    sx={{
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        transform: 'translateX(3px)'
+                      }
+                    }}
+                  >
+                    Показать все
+                  </Button>
+                </Box>
+                
+                <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                  {recentTransactions && recentTransactions.length > 0 ? (
+                    <List sx={{ p: 0 }}>
+                      {recentTransactions.map((transaction, index) => {
+                        // Попытка получить категорию по ID - делаем так же, как в TransactionsList.tsx
+                        let category = getCategoryById(transaction?.categoryId, categories);
+                        
+                        // Если категорию не нашли по categoryId, пробуем поискать по полю category
+                        if (!category && transaction.category) {
+                          category = getCategoryById(transaction.category, categories);
+                        }
+                        
+                        // Для отладки
+                        console.log(
+                          `Дашборд: транзакция ${transaction.id}: categoryId=${transaction.categoryId}, ` +
+                          `category=${transaction.category}, найденная категория:`, 
+                          category
+                        );
+                        
+                        return (
+                          <motion.div
+                            key={transaction.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
+                            <ListItem 
+                              sx={{ 
+                                px: 2, 
+                                py: 1.5,
+                                borderRadius: 2,
+                                mb: 1,
+                                transition: 'all 0.2s ease',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  bgcolor: 'action.hover',
+                                  transform: 'translateX(5px)'
+                                }
+                              }}
+                              onClick={() => handleTransactionClick(transaction.id || 0)}
+                              component="div"
+                            >
+                              <ListItemAvatar>
+                                <Avatar 
+                                  sx={{ 
+                                    bgcolor: transaction.type === 'CREDIT' ? 'success.light' : 'error.light',
+                                    color: 'white'
+                                  }}
+                                >
+                                  {transaction.type === 'CREDIT' ? 
+                                    <TrendingUp /> : 
+                                    <TrendingDown />
+                                  }
+                                </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body1" fontWeight={500}>
+                                      {transaction.description}
+                                    </Typography>
+                                    <Typography 
+                                      variant="body1" 
+                                      fontWeight={600}
+                                      color={transaction.type === 'CREDIT' ? 'success.main' : 'error.main'}
+                                    >
+                                      {transaction.type === 'CREDIT' ? '+' : '-'}
+                                      {formatCurrency(Math.abs(transaction.amount))}
+                                    </Typography>
+                                  </Box>
+                                }
+                                secondary={
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {category?.name || (transaction.categoryId ? `Категория №${transaction.categoryId}` : 'Без категории')}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {formatDate(transaction.transactionDate)}
+                                    </Typography>
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          </motion.div>
+                        );
+                      })}
+                    </List>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 4 }}>
+                        <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+                        <Typography variant="body1" color="text.secondary">
+                          Нет последних транзакций
+                        </Typography>
+                      </Box>
+                    </motion.div>
+                  )}
+                </Box>
+                
+                {transactions.length > 0 && (
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Add />}
+                      onClick={() => navigate('/transactions/new')}
+                      fullWidth
+                      sx={{
+                        mt: 1.5,
+                        py: 1,
+                        transition: 'all 0.15s ease',
+                        borderRadius: 2,
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
+                        }
+                      }}
+                    >
+                      Добавить транзакцию
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
+            </motion.div>
           </Box>
         </motion.div>
+      )}
+      
+      {/* Модальное окно с деталями транзакции */}
+      {selectedTransactionId !== null && (
+        <TransactionDetailsModal
+          open={detailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          transactionId={selectedTransactionId}
+        />
       )}
     </Box>
   );
